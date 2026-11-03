@@ -1,0 +1,13 @@
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.suo
+.env
+.env.*
+appsettings.Development.json
+App_Data/
+**/seed-state.json
+**/*-data.json
+Data/
