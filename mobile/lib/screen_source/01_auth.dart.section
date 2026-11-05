@@ -1,0 +1,155 @@
+class AuthScreen extends StatefulWidget {
+  const AuthScreen({super.key});
+  @override
+  State<AuthScreen> createState() => _AuthScreenState();
+}
+class _AuthScreenState extends State<AuthScreen> {
+  final email = TextEditingController(), pass = TextEditingController(), name = TextEditingController();
+  bool create = false, busy = false, showPassword = false;
+  @override
+  void dispose() { email.dispose(); pass.dispose(); name.dispose(); super.dispose(); }
+  void notice(String msg) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+  Future<void> submit() async {
+    if (email.text.trim().isEmpty || pass.text.isEmpty || (create && name.text.trim().length < 2)) {
+      notice('Please complete all required fields.'); return;
+    }
+    if (create && pass.text.length < 12) { notice('Use a password of at least 12 characters.'); return; }
+    setState(() => busy = true);
+    try {
+      if (create) {
+        await _db.auth.signUp(email: email.text.trim(), password: pass.text,
+          data: {'full_name': name.text.trim()});
+        if (mounted) {
+          await showDialog<void>(context: context, builder: (ctx) => AlertDialog(
+            title: const Text('Check your email'),
+            content: const Text('We sent you a confirmation link. After confirming, sign in. Your school will verify the learners connected to your account.'),
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Got it'))],
+          ));
+          if (mounted) setState(() => create = false);
+        }
+      } else {
+        await _db.auth.signInWithPassword(email: email.text.trim(), password: pass.text);
+      }
+    } on AuthException catch (e) { notice(e.message); }
+    catch (_) { notice('Could not connect. Check your internet connection and try again.'); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
+  Future<void> resetPassword() async {
+    if (email.text.trim().isEmpty) { notice('Enter your email address first.'); return; }
+    try {
+      await _db.auth.resetPasswordForEmail(email.text.trim());
+      notice('If an account exists, recovery instructions will be sent.');
+    } catch (_) { notice('Could not send recovery email.'); }
+  }
+  @override
+  Widget build(BuildContext context) => Scaffold(body: LayoutBuilder(builder: (context, bounds) {
+    final wide = bounds.maxWidth >= 900;
+    final form = Center(child: SingleChildScrollView(padding: EdgeInsets.symmetric(
+      horizontal: wide ? 44 : 24, vertical: 36), child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 430),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (!wide) ...[
+          const Center(child: KagishoLogo(size: 42)), const SizedBox(height: 34),
+        ],
+        const StatusChip('THE FAMILY EXPERIENCE'),
+        const SizedBox(height: 18),
+        Text(create ? 'Welcome to the family.' : 'Good to have you back.',
+          style: const TextStyle(fontSize: 35, fontWeight: FontWeight.w900,
+            color: Brand.ink, height: 1.14, letterSpacing: -1.1)),
+        const SizedBox(height: 12),
+        Text(create ? 'Create a secure space to stay close to your child’s school day.'
+          : 'Sign in to see what matters in your child’s school day.',
+          style: const TextStyle(color: Brand.muted, fontSize: 15, height: 1.6)),
+        const SizedBox(height: 32),
+        if (create) ...[
+          const Text('Your name', style: TextStyle(fontWeight: FontWeight.w800, color: Brand.ink)),
+          const SizedBox(height: 9),
+          TextField(controller: name, textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(hintText: 'Your full name', prefixIcon: Icon(Icons.person_outline_rounded))),
+          const SizedBox(height: 20),
+        ],
+        const Text('Email address', style: TextStyle(fontWeight: FontWeight.w800, color: Brand.ink)),
+        const SizedBox(height: 9),
+        TextField(controller: email, keyboardType: TextInputType.emailAddress,
+          autofillHints: const [AutofillHints.email],
+          decoration: const InputDecoration(hintText: 'name@example.com',
+            prefixIcon: Icon(Icons.mail_outline_rounded))),
+        const SizedBox(height: 20),
+        const Text('Password', style: TextStyle(fontWeight: FontWeight.w800, color: Brand.ink)),
+        const SizedBox(height: 9),
+        TextField(controller: pass, obscureText: !showPassword,
+          autofillHints: [create ? AutofillHints.newPassword : AutofillHints.password],
+          onSubmitted: (_) { if (!busy) submit(); },
+          decoration: InputDecoration(hintText: create ? 'At least 12 characters' : 'Enter your password',
+            prefixIcon: const Icon(Icons.lock_outline_rounded),
+            suffixIcon: IconButton(tooltip: showPassword ? 'Hide password' : 'Show password',
+              onPressed: () => setState(() => showPassword = !showPassword),
+              icon: Icon(showPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined)))),
+        if (!create) Align(alignment: Alignment.centerRight,
+          child: TextButton(onPressed: busy ? null : resetPassword, child: const Text('Forgot password?'))),
+        SizedBox(height: create ? 28 : 14),
+        ElevatedButton(onPressed: busy ? null : submit,
+          child: busy ? const SizedBox(width: 22, height: 22,
+            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+          : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Text(create ? 'Create parent account' : 'Sign in'),
+              const SizedBox(width: 9), const Icon(Icons.arrow_forward_rounded, size: 18),
+            ])),
+        const SizedBox(height: 18),
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text(create ? 'Already registered?' : 'New to Kagisho?',
+            style: const TextStyle(color: Brand.muted)),
+          TextButton(onPressed: busy ? null : () => setState(() => create = !create),
+            child: Text(create ? 'Sign in' : 'Create account',
+              style: const TextStyle(fontWeight: FontWeight.w900))),
+        ]),
+        const SizedBox(height: 25),
+        const Text('For parents and guardians. Staff use the school portal.',
+          textAlign: TextAlign.center, style: TextStyle(color: Brand.muted, fontSize: 12)),
+      ]),
+    )));
+    if (!wide) return form;
+    return Row(children: [
+      Expanded(child: Container(
+        padding: const EdgeInsets.all(64),
+        decoration: const BoxDecoration(gradient: LinearGradient(
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+          colors: [Brand.forest, Color(0xFF127FB6), Color(0xFF2DA8DB)])),
+        child: Stack(children: [
+          Positioned(right: -110, bottom: -120, child: Container(width: 440, height: 440,
+            decoration: BoxDecoration(shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withOpacity(.13), width: 65)))),
+          Positioned(left: -150, top: -120, child: Container(width: 350, height: 350,
+            decoration: BoxDecoration(shape: BoxShape.circle,
+              color: Colors.white.withOpacity(.04)))),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const KagishoLogo(inverse: true, size: 44),
+            const Spacer(),
+            const Icon(Icons.favorite_rounded, color: Brand.lime, size: 45),
+            const SizedBox(height: 24),
+            const Text('Closer to their world.\nEvery single day.',
+              style: TextStyle(color: Brand.white, fontSize: 52,
+                fontWeight: FontWeight.w900, height: 1.12, letterSpacing: -1.5)),
+            const SizedBox(height: 21),
+            const Text('Attendance, achievements, school news and real conversations—all in one beautiful space for families.',
+              style: TextStyle(color: Color(0xFFE0F2FD), fontSize: 17, height: 1.7)),
+            const SizedBox(height: 35),
+            Container(padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+              decoration: BoxDecoration(color: Colors.white.withOpacity(.12),
+                borderRadius: BorderRadius.circular(14)),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.shield_outlined, color: Brand.lime, size: 20), SizedBox(width: 10),
+                Text('A safer connection between home and school',
+                  style: TextStyle(color: Brand.white, fontWeight: FontWeight.w600)),
+              ])),
+            const Spacer(),
+          ]),
+        ]),
+      )),
+      Expanded(child: form),
+    ]);
+  }));
+}
+

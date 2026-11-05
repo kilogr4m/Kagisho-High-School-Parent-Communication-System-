@@ -1,0 +1,31 @@
+  Widget schoolPage() => ListView(padding: const EdgeInsets.fromLTRB(19, 22, 19, 36), children: [
+    headline('School updates', 'Everything happening at school'),
+    documentsPanel(),
+    const SizedBox(height:30),
+    const SectionTitle('School calendar', subtitle: 'Dates worth remembering'),
+    if (events.isEmpty) const EmptyPanel(icon: Icons.calendar_today_outlined,
+      heading: 'No school events yet', detail: 'Upcoming meetings and important dates will appear here.')
+    else ...events.map((item) => Padding(padding: const EdgeInsets.only(bottom: 10),
+      child: SoftCard(child: Row(children: [
+        IconBadge(Icons.event_rounded, background: const Color(0xFFEAEFFF),
+          foreground: const Color(0xFF657DC4)),
+        const SizedBox(width: 14),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(textValue(item['title']), style: const TextStyle(
+            fontWeight: FontWeight.w900, color: Brand.ink)),
+          const SizedBox(height: 5),
+          Text(textValue(item['description']), style: const TextStyle(
+            color: Brand.muted, fontSize: 12), maxLines: 3, overflow: TextOverflow.ellipsis),
+        ])),
+        const SizedBox(width: 9),
+        Text(friendlyDate(item['school_date']),
+          style: const TextStyle(color: Brand.green, fontSize: 11, fontWeight: FontWeight.w800)),
+      ])))),
+    const SizedBox(height: 30),
+    SectionTitle('Announcements', subtitle: '${news.length} update(s) from your school'),
+    if (news.isEmpty) const EmptyPanel(icon: Icons.campaign_outlined,
+      heading: 'You’re all caught up', detail: 'Your school’s updates will show here as they are published.')
+    else ...news.map((item) => Padding(padding: const EdgeInsets.only(bottom: 12),
+      child: announcementCard(item))),
+  ]);
+

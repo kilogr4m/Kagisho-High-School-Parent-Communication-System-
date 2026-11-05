@@ -1,0 +1,273 @@
+  Widget learnerHeader() => Container(
+    width: double.infinity,
+    constraints: const BoxConstraints(minHeight: 202),
+    clipBehavior: Clip.antiAlias,
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+        colors: [Color(0xFF0E3655), Color(0xFF165E8A), Color(0xFF24A6E2)]),
+      borderRadius: BorderRadius.circular(28),
+      boxShadow: const [BoxShadow(color: Color(0x1A105244), blurRadius: 30, offset: Offset(0, 15))],
+    ),
+    child: Stack(children: [
+      Positioned(right: -90, bottom: -145, child: Container(
+        width: 340, height: 340, decoration: BoxDecoration(
+          shape: BoxShape.circle, border: Border.all(color: Colors.white.withOpacity(.1), width: 48)))),
+      Positioned(right: 65, top: -118, child: Container(
+        width: 210, height: 210, decoration: BoxDecoration(
+          shape: BoxShape.circle, color: Colors.white.withOpacity(.05)))),
+      Padding(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 26),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.stars_rounded, size: 17, color: Brand.lime),
+            const SizedBox(width: 7),
+            const Text('LEARNER SPOTLIGHT', style: TextStyle(color: Brand.lime,
+              fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.6)),
+            const Spacer(),
+            Container(padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+              decoration: BoxDecoration(color: Colors.white.withOpacity(.14),
+                borderRadius: BorderRadius.circular(99)),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.verified_rounded, color: Brand.lime, size: 15),
+                SizedBox(width: 6),
+                Text('VERIFIED', style: TextStyle(color: Colors.white,
+                  fontSize: 10, letterSpacing: .8, fontWeight: FontWeight.w900)),
+              ])),
+          ]),
+          const SizedBox(height: 26),
+          Row(children: [
+            Container(width: 68, height: 68,
+              decoration: BoxDecoration(color: Colors.white.withOpacity(.15),
+                border: Border.all(color: Colors.white.withOpacity(.2)),
+                borderRadius: BorderRadius.circular(22)),
+              child: const Icon(Icons.school_rounded, size: 37, color: Colors.white)),
+            const SizedBox(width: 18),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(childName, maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white, fontSize: 26,
+                  fontWeight: FontWeight.w900, letterSpacing: -.6)),
+              const SizedBox(height: 7),
+              Text('$selectedClass  •  Your learner', style: const TextStyle(
+                color: Color(0xFFE3F5FF), fontWeight: FontWeight.w600, fontSize: 13)),
+            ])),
+          ]),
+          const SizedBox(height: 19),
+          Text('Growing, learning and showing up — one day at a time.',
+            style: TextStyle(color: Colors.white.withOpacity(.86),
+              fontSize: 13, height: 1.4)),
+        ])),
+    ]),
+  );
+
+  Widget learningRing(int? percent, Color accent) {
+    final value = (percent ?? 0).clamp(0, 100).toDouble() / 100;
+    return SizedBox(width: 116, height: 116, child: Stack(
+      fit: StackFit.expand, children: [
+        CircularProgressIndicator(value: value, strokeWidth: 11,
+          strokeCap: StrokeCap.round, backgroundColor: Brand.border, color: accent),
+        Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(percent == null ? '—' : '$percent%', style: const TextStyle(
+            color: Brand.ink, fontSize: 27, fontWeight: FontWeight.w900,
+            letterSpacing: -1.1)),
+          Text(percent == null ? 'NO DATA' : 'ON RECORD', style: const TextStyle(
+            color: Brand.muted, fontSize: 9, letterSpacing: .8,
+            fontWeight: FontWeight.w800)),
+        ])),
+      ],
+    ));
+  }
+
+  Widget learnerInsightCard({required String label, required int? value,
+    required String description, required String footnote,
+    required IconData icon, required Color accent, required Color iconBackground}) =>
+    SoftCard(padding: const EdgeInsets.all(23), child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          IconBadge(icon, size: 42, background: iconBackground, foreground: accent),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label, style: const TextStyle(color: Brand.ink,
+            fontSize: 16, fontWeight: FontWeight.w900))),
+          const Icon(Icons.more_horiz_rounded, color: Brand.muted),
+        ]),
+        const SizedBox(height: 23),
+        Row(children: [
+          learningRing(value, accent),
+          const SizedBox(width: 20),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(description, style: const TextStyle(color: Brand.ink,
+              fontSize: 15, fontWeight: FontWeight.w800, height: 1.4)),
+            const SizedBox(height: 8),
+            const Text('A snapshot of information shared by the school.',
+              style: TextStyle(color: Brand.muted, fontSize: 12, height: 1.5)),
+          ])),
+        ]),
+        const SizedBox(height: 22),
+        const Divider(height: 1, color: Brand.border),
+        const SizedBox(height: 15),
+        Row(children: [
+          const Icon(Icons.info_outline_rounded, color: Brand.muted, size: 16),
+          const SizedBox(width: 8),
+          Expanded(child: Text(footnote, style: const TextStyle(
+            color: Brand.muted, fontSize: 12, fontWeight: FontWeight.w600))),
+        ]),
+      ],
+    ));
+
+  Widget learningResultsCard(List<Map<String, dynamic>> results) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      SectionTitle('Subject performance', subtitle: 'Progress in every subject'),
+      if (results.isEmpty)
+        const EmptyPanel(icon: Icons.menu_book_outlined,
+          heading: 'Results on the way',
+          detail: 'Scores will appear after the school publishes them.')
+      else SoftCard(padding: const EdgeInsets.all(22), child: Column(children: [
+        for (var i = 0; i < results.length; i++) ...[
+          if (i > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 18),
+            child: Divider(height: 1, color: Brand.border)),
+          Builder(builder: (context) {
+            final item = results[i];
+            final score = (item['score'] as num?)?.toDouble() ?? 0;
+            final displayScore = score.round();
+            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(width: 35, height: 35,
+                  decoration: BoxDecoration(color: Brand.mint,
+                    borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.menu_book_rounded, size: 18, color: Brand.green)),
+                const SizedBox(width: 10),
+                Expanded(child: Text(textValue(item['subject']),
+                  style: const TextStyle(color: Brand.ink, fontWeight: FontWeight.w900,
+                    fontSize: 14), maxLines: 2, overflow: TextOverflow.ellipsis)),
+                Text('$displayScore%', style: const TextStyle(color: Brand.green,
+                  fontWeight: FontWeight.w900, fontSize: 19)),
+              ]),
+              const SizedBox(height: 12),
+              ClipRRect(borderRadius: BorderRadius.circular(99),
+                child: LinearProgressIndicator(
+                  value: score.clamp(0, 100) / 100, minHeight: 10,
+                  backgroundColor: Brand.mint, color: Brand.green)),
+            ]);
+          }),
+        ],
+        const SizedBox(height: 18),
+        const Divider(height: 1, color: Brand.border),
+        const SizedBox(height: 14),
+        Row(children: [
+          const Icon(Icons.insights_outlined, size: 17, color: Brand.green),
+          const SizedBox(width: 7),
+          Expanded(child: Text('${results.length} subject result${results.length == 1 ? '' : 's'} published',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+              color: Brand.muted))),
+        ]),
+      ])),
+    ],
+  );
+
+  Widget learnerAttendanceCard(List<Map<String, dynamic>> records) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      SectionTitle('Attendance timeline', subtitle: 'Only submitted school registers appear'),
+      if (records.isEmpty)
+        const EmptyPanel(icon: Icons.event_available_outlined,
+          heading: 'No attendance records yet',
+          detail: 'Daily registers will appear here after the school submits them.')
+      else SoftCard(padding: const EdgeInsets.all(22), child: Column(children: [
+        for (var i = 0; i < records.length; i++) ...[
+          if (i > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 13),
+            child: Divider(height: 1, color: Brand.border)),
+          Builder(builder: (context) {
+            final item = records[i];
+            final present = item['status'] == 'Present';
+            return Row(children: [
+              IconBadge(present ? Icons.check_circle_outline_rounded : Icons.event_busy_outlined,
+                background: present ? Brand.mint : Brand.softAmber,
+                foreground: present ? Brand.green : Brand.amber, size: 43),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(friendlyDate(item['school_date']), style: const TextStyle(
+                  color: Brand.ink, fontSize: 13, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 4),
+                const Text('Submitted register', style: TextStyle(
+                  color: Brand.muted, fontSize: 11)),
+              ])),
+              StatusChip(textValue(item['status']),
+                color: present ? Brand.green : Brand.amber,
+                background: present ? Brand.mint : Brand.softAmber),
+            ]);
+          }),
+        ],
+        const SizedBox(height: 15),
+        const Divider(height: 1, color: Brand.border),
+        const SizedBox(height: 14),
+        Text('${records.length} recorded school day${records.length == 1 ? '' : 's'}',
+          style: const TextStyle(color: Brand.muted, fontSize: 12)),
+      ])),
+    ],
+  );
+
+  Widget learnerPage() {
+    if (child == null) return ListView(children: [const Padding(
+      padding: EdgeInsets.all(20), child: EmptyPanel(icon: Icons.family_restroom_rounded,
+        heading: 'Your family space is almost ready',
+        detail: 'Request access with your child’s name and date of birth. The school must independently verify guardianship.')),
+      Padding(padding:const EdgeInsets.fromLTRB(20,0,20,20),child:claimPanel())]);
+    final results = childMarks;
+    final records = childAttendance;
+    final consideredDays = presentDays + absentDays;
+    final attendancePercent = consideredDays == 0 ? null : (100 * presentDays / consideredDays).round();
+
+    final academic = learnerInsightCard(label: 'Academic average', value: average,
+      description: average == null ? 'No published scores yet'
+        : 'Your child’s latest recorded subject scores',
+      footnote: '${results.length} subject result${results.length == 1 ? '' : 's'} included in this average',
+      icon: Icons.auto_graph_rounded, accent: Brand.green, iconBackground: Brand.mint);
+    final attendanceInsight = learnerInsightCard(label: 'Recorded attendance',
+      value: attendancePercent,
+      description: attendancePercent == null ? 'Attendance records are on the way'
+        : '$presentDays present · $absentDays absent',
+      footnote: 'Based on $consideredDays recorded day${consideredDays == 1 ? '' : 's'} (not the full term)',
+      icon: Icons.event_available_rounded, accent: const Color(0xFF6177D4),
+      iconBackground: const Color(0xFFEEF0FF));
+
+    return ListView(padding: const EdgeInsets.fromLTRB(20, 25, 20, 45), children: [
+      headline('My children', 'Their learning journey, all in one beautiful place'),
+      familyPicker(),
+      learnerHeader(),
+      const SizedBox(height: 27),
+      reportCardsPanel(),
+      const SizedBox(height: 25),
+      const SectionTitle('At a glance', subtitle: 'A clearer picture of today’s school records'),
+      LayoutBuilder(builder: (context, c) {
+        if (c.maxWidth >= 800) return Row(
+          crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: academic), const SizedBox(width: 17),
+            Expanded(child: attendanceInsight),
+          ]);
+        return Column(children: [academic, const SizedBox(height: 14), attendanceInsight]);
+      }),
+      const SizedBox(height: 31),
+      LayoutBuilder(builder: (context, c) {
+        final resultsCard = learningResultsCard(results);
+        final attendanceCard = learnerAttendanceCard(records);
+        if (c.maxWidth >= 800) return Row(
+          crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: resultsCard), const SizedBox(width: 17),
+            Expanded(child: attendanceCard),
+          ]);
+        return Column(children: [resultsCard, const SizedBox(height: 25), attendanceCard]);
+      }),
+      const SizedBox(height: 26),
+      claimPanel(),
+      const SizedBox(height: 20),
+      SoftCard(color: Brand.mint, padding: const EdgeInsets.all(20),
+        child: Wrap(spacing: 15, runSpacing: 12, crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const IconBadge(Icons.support_agent_rounded, size: 49,
+              background: Brand.white, foreground: Brand.green),
+            const Text('Questions about your child’s progress?',
+              style: TextStyle(fontSize: 15, color: Brand.ink, fontWeight: FontWeight.w900)),
+            TextButton.icon(onPressed: () => selectTab(3),
+              icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+              label: const Text('Message the school')),
+          ])),
+    ]);
+  }
+
