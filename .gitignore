@@ -11,3 +11,9 @@ App_Data/
 **/seed-state.json
 **/*-data.json
 Data/
+mobile/.dart_tool/
+mobile/.flutter-plugins-dependencies
+mobile/build/
+web/bin/
+web/obj/
+**/config/supabase.local.json

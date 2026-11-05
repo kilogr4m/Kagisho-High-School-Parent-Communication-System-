@@ -79,7 +79,7 @@ public sealed class PortalExtensionService(HttpClient client,IConfiguration conf
     private static int? Grade(string s)
     {
         if(s=="all")return null;
-        if(!int.TryParse(s,out var g)||g is <1 or >12)throw new SchoolDataException("Choose a valid grade.");
+        if(!int.TryParse(s,out var g)||g is <8 or >12)throw new SchoolDataException("Choose a valid grade.");
         return g;
     }
     public async Task<JsonElement> AttendanceAnalytics(string start,string end,string grade,string classId,string jwt,CancellationToken ct)
@@ -98,19 +98,45 @@ public sealed class PortalExtensionService(HttpClient client,IConfiguration conf
         var dates=await Get("kc_learner_birthdates","learner_id,birth_date","limit=500",jwt,ct);
         return new {requests,birthdates=dates};
     }
-    public Task<JsonElement> SetLearnerBirthdate(string learnerId,string date,string jwt,CancellationToken ct)
+    public async Task<JsonElement> SetLearnerBirthdate(string learnerId,string date,string jwt,CancellationToken ct)
     {
         var id=ID(learnerId);
-        if(!DateOnly.TryParseExact(date,"yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture,System.Globalization.DateTimeStyles.None,out var dob)||dob.Year<1990||dob> DateOnly.FromDateTime(DateTime.UtcNow))
+        if(!DateOnly.TryParseExact(date,"yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture,System.Globalization.DateTimeStyles.None,out var dob)||dob.Year<1990||dob>DateOnly.FromDateTime(DateTime.UtcNow))
             throw new SchoolDataException("Enter a valid learner date of birth (YYYY-MM-DD).");
-        return Send(HttpMethod.Post,"/rest/v1/kc_learner_birthdates?on_conflict=learner_id",jwt,
-            new{learner_id=id,birth_date=dob.ToString("yyyy-MM-dd"),updated_at=DateTimeOffset.UtcNow},true,ct);
+        var value=dob.ToString("yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture);
+        var saved=await Send(HttpMethod.Post,"/rest/v1/kc_learner_birthdates?on_conflict=learner_id",jwt,
+            new{learner_id=id,birth_date=value,updated_at=DateTimeOffset.UtcNow},true,ct);
+        var row=One(saved);
+        if(Field(row,"birth_date")!=value)
+            throw new SchoolDataException("The school could not confirm that the date of birth was saved.");
+        return row;
     }
-    public Task<JsonElement> ReviewGuardianRequest(string requestId,bool approve,string note,string jwt,CancellationToken ct)
+    public async Task<object> ReviewGuardianRequest(string requestId,bool approve,string note,string jwt,CancellationToken ct)
     {
+        var id=ID(requestId);
         if((note??"").Length>500)throw new SchoolDataException("Review note is too long.");
-        return Send(HttpMethod.Post,"/rest/v1/rpc/kc_review_guardian_request",jwt,
-            new {p_request_id=ID(requestId),p_approve=approve,p_note=note??""},ct:ct);
+        // The V6 SQL function reviews the request and adds the guardian link atomically.
+        // Its return value alone is not proof that the status persisted: re-read it.
+        await Send(HttpMethod.Post,"/rest/v1/rpc/kc_review_guardian_request",jwt,
+            new {p_request_id=id,p_approve=approve,p_note=note??""},ct:ct);
+        var rows=await Get("kc_guardian_requests","id,parent_id,status,learner_id",
+            $"id=eq.{id}&limit=1",jwt,ct);
+        var row=One(rows);
+        var status=Field(row,"status");
+        var expected=approve?"approved":"rejected";
+        if(status!=expected)
+            throw new SchoolDataException("Review status was not confirmed. Refresh the request list before retrying.");
+        var learnerId=Field(row,"learner_id");
+        if(approve)
+        {
+            if(!Guid.TryParse(learnerId,out _))
+                throw new SchoolDataException("Approval is missing the verified learner link. Contact the administrator.");
+            var parentId=Field(row,"parent_id");
+            var links=await Get("kc_guardian_links","learner_id,user_id",
+                $"learner_id=eq.{ID(learnerId)}&user_id=eq.{ID(parentId)}&limit=1",jwt,ct);
+            One(links); // RLS-checked link must actually exist.
+        }
+        return new {status,learnerId=approve?learnerId:null,id};
     }
     public async Task<object> Dashboard(string jwt,CancellationToken ct)
     {

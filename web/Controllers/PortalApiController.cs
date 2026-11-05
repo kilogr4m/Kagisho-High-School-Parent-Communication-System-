@@ -69,7 +69,7 @@ public sealed class PortalApiController(SupabaseSchoolService school):Controller
     [Authorize(Roles="Admin")][HttpPost("admin/learners")][ValidateAntiForgeryToken]
     public async Task<IActionResult> NewLearner([FromBody] NewLearnerRequest input,CancellationToken ct)
     {
-        try{await school.AddLearner(input.Name,input.ClassId,input.AdmissionNumber,await Token(),ct);return Ok(new{saved=true});}catch(SchoolDataException e){return Error(e);}
+        try{await school.AddLearner(input.Name,input.ClassId,input.AdmissionNumber,input.BirthDate,await Token(),ct);return Ok(new{saved=true});}catch(SchoolDataException e){return Error(e);}
     }
     [Authorize(Roles="Admin")][HttpPost("admin/link-guardian")][ValidateAntiForgeryToken]
     public async Task<IActionResult> NewGuardianLink([FromBody] ParentLinkRequest input,CancellationToken ct)
@@ -83,7 +83,7 @@ public sealed class PortalApiController(SupabaseSchoolService school):Controller
     }
     public sealed record EventRequest(string Title,string Description,string Date,string Grade,string Category="General",string Time="");
     public sealed record NewClassRequest(string Name,int Grade);
-    public sealed record NewLearnerRequest(string Name,string ClassId,string AdmissionNumber);
+    public sealed record NewLearnerRequest(string Name,string ClassId,string AdmissionNumber,string BirthDate);
     public sealed record ParentLinkRequest(string UserId,string LearnerId);
     public sealed record TeacherClassRequest(string UserId,string ClassId);
 }

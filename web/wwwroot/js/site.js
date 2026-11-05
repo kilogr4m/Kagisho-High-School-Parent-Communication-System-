@@ -41,7 +41,7 @@
   const notices=()=>store?.announcements||[];
   const roll=()=>store?.rollCalls?.find(r=>r.classId===selectedClass&&r.date===rollDate);
   const currentLearner=()=>lrn().find(l=>l.id===(staff()?selectedLearner:selectedChild))||lrn()[0];
-  function toast(s,isError=false){let el=$('toast');el.textContent=s;el.hidden=false;el.style.background=isError?'#8c332d':'#154747';clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.hidden=true,5200);}
+  function toast(s,isError=false){let el=$('toast');el.textContent=s;el.hidden=false;el.style.background=isError?'#8c332d':'#124B74';clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.hidden=true,5200);}
   async function call(url,opts={}){
     const method=opts.method||'GET';
     const resp=await fetch(url,{...opts,credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json',...(method==='GET'?{}:{...(opts.body instanceof FormData?{}:{'Content-Type':'application/json'}),'X-CSRF-TOKEN':csrf}),...(opts.headers||{})}});
@@ -115,7 +115,7 @@
     return `${hero('SCHOOL COMMUNITY','Clear communication for every family.','Create, edit, archive and publish school announcements from one secure place.')}
     <section class="card panel">${heading(edit?'Edit announcement':'Create an announcement',edit?'Update this record or change its publication status.':'Published notices appear in the parent app.')}
     <form id="announcementForm"><div class="form-grid"><label class="field full">Title<input name="title" required maxlength="120" value="${esc(edit?.title||'')}"/></label><label class="field full">Message<textarea name="body" required maxlength="4000">${esc(edit?.body||'')}</textarea></label>
-    <label class="field">Audience<select name="grade"><option value="all">All families</option>${Array.from({length:12},(_,i)=>String(i+1)).map(g=>`<option value="${g}" ${edit?.grade===g?'selected':''}>Grade ${g}</option>`).join('')}</select></label>
+    <label class="field">Audience<select name="grade"><option value="all">All families</option>${Array.from({length:5},(_,i)=>String(i+8)).map(g=>`<option value="${g}" ${edit?.grade===g?'selected':''}>Grade ${g}</option>`).join('')}</select></label>
     <label class="field">Priority<select name="priority">${['Normal','Important','Urgent'].map(k=>`<option ${edit?.priority===k?'selected':''}>${k}</option>`).join('')}</select></label>
     ${edit?`<label class="field">Status<select name="status">${['published','draft','archived'].map(k=>`<option ${edit.status===k?'selected':''}>${k}</option>`).join('')}</select></label>`:''}</div>
     <div class="form-actions"><button class="button primary" type="submit">${edit?'Save changes':'Publish announcement'}</button>${edit?`<button class="button outline" id="cancelAnnouncement" type="button">Cancel</button>`:''}</div></form></section>
@@ -129,7 +129,7 @@
     <label class="field full">Description<textarea name="description" maxlength="2000">${esc(edit?.description||'')}</textarea></label>
     <label class="field">Start time<input name="time" type="time" value="${esc(edit?.startTime||'')}"/></label>
     <label class="field">Category<select name="category">${['General','Exams','Parent meeting','Sports','School activity','Term date'].map(k=>`<option ${edit?.category===k?'selected':''}>${k}</option>`).join('')}</select></label>
-    <label class="field">Audience<select name="grade"><option value="all">All families</option>${Array.from({length:12},(_,i)=>String(i+1)).map(g=>`<option value="${g}" ${edit?.grade===g?'selected':''}>Grade ${g}</option>`).join('')}</select></label>
+    <label class="field">Audience<select name="grade"><option value="all">All families</option>${Array.from({length:5},(_,i)=>String(i+8)).map(g=>`<option value="${g}" ${edit?.grade===g?'selected':''}>Grade ${g}</option>`).join('')}</select></label>
     <div class="form-actions"><button class="button primary">${edit?'Save event changes':'Publish event'}</button>${edit?`<button class="button outline" id="cancelEvent" type="button">Cancel</button>`:''}</div></form></section>
     <section class="card panel">${heading('School events',((store.events||[]).length)+' event(s)')}
     <label class="field">Find events<input id="eventSearch" placeholder="Filter by title, date or category"/></label>
@@ -217,6 +217,9 @@
     const requests=guardianReviews?.requests||[];
     const dates=guardianReviews?.birthdates||[];
     const people=adminDirectory?.parents||[];
+    const normalizeName=(x)=>String(x||'').trim().replace(/\s+/g,' ').toLocaleLowerCase();
+    const matchingLearners=(r)=>lrn().filter(l=>normalizeName(l.name)===normalizeName(r.child_name)
+      &&dates.some(d=>d.learner_id===l.id&&d.birth_date===r.child_birth_date));
     return `<section class="card panel">${heading('Parent access requests','Parents enter their child’s name and date of birth. Administrators verify guardianship, then approve or reject.')}
       ${guardianReviewsError?`<div class="empty-note">Apply migration 04_parent_experience.sql to enable requests. ${esc(guardianReviewsError)}</div>`:''}
       <form id="learnerBirthdateForm" class="form-grid">
@@ -227,7 +230,7 @@
       <p class="muted">${dates.length} learner DOB record(s) securely stored. Date of birth is never shown in the parent app. Confirm a parent’s identity and guardianship independently before approval.</p>
       <div class="table-scroll"><table class="data-table"><thead><tr><th>Parent</th><th>Claimed learner</th><th>Date of birth</th><th>Status</th><th>Review</th></tr></thead><tbody>
         ${requests.map(r=>`<tr><td>${esc(people.find(p=>p.user_id===r.parent_id)?.full_name||'Registered parent')}<br><small>${esc(people.find(p=>p.user_id===r.parent_id)?.email||'')}</small></td>
-          <td>${esc(r.child_name)}</td><td>${esc(r.child_birth_date)}</td><td>${pill(r.status,r.status==='approved'?'pill-green':'pill-gold')}</td>
+          <td>${esc(r.child_name)}${r.status==='pending'?`<br><small class="muted">${matchingLearners(r).length===1?'School record matches; independently verify guardianship':matchingLearners(r).length===0?'No matching learner + verified DOB; check records first':'Multiple matching records; resolve duplicates'}</small>`:''}</td><td>${esc(r.child_birth_date)}</td><td>${pill(r.status,r.status==='approved'?'pill-green':'pill-gold')}</td>
           <td>${r.status==='pending'?`<div class="action-stack"><button class="button primary" data-guardian-review="${esc(r.id)}" data-approve="true">Approve</button><button class="button danger-outline" data-guardian-review="${esc(r.id)}" data-approve="false">Reject</button></div>`:'Reviewed'}</td></tr>`).join('')||'<tr><td colspan="5">No requests submitted yet.</td></tr>'}
       </tbody></table></div></section>`;
   }
@@ -240,9 +243,9 @@
     const links=adminDirectory?.links||[];
     const target=learners.find(l=>l.id===editingLearner);
     return `${hero('SCHOOL DIRECTORY','Your school, organised.','Create school classes and learners, assign teachers and verify parent–child relationships.','','Verified and connected')}
-      <section class="card panel">${heading('Classes and learners','Add a class before adding learners; these records are saved to Supabase.')}
-      <div class="two-cols"><form id="classForm" class="login-form"><h3>Create a class</h3><label class="field">Class name<input name="name" placeholder="Grade 10B" required minlength="2" maxlength="40" /></label><label class="field">Grade<select name="grade">${Array.from({length:12},(_,i)=>`<option value="${i+1}" ${i===9?'selected':''}>Grade ${i+1}</option>`).join('')}</select></label><button class="button primary">Save class</button></form>
-      <form id="learnerForm" class="login-form"><h3>Add a learner</h3><label class="field">Learner full name<input name="name" required maxlength="100" placeholder="Fictional learner name"/></label><label class="field">Class<select name="classId" required>${options(classes,'id','name')}</select></label><label class="field">Unique admission number<input name="admissionNumber" required minlength="4" maxlength="32" placeholder="e.g. KG-2026-0001"/></label><button class="button primary" ${classes.length?'':'disabled'}>Save learner</button></form></div></section>
+      <section class="card panel">${heading('Classes and learners','Add a class first. Each learner is registered with a verified date of birth.')}
+      <div class="two-cols"><form id="classForm" class="login-form"><h3>Create a class</h3><label class="field">Class name<input name="name" placeholder="Grade 10B" required minlength="2" maxlength="40" /></label><label class="field">Grade<select name="grade">${Array.from({length:5},(_,i)=>`<option value="${i+8}" ${i===2?'selected':''}>Grade ${i+8}</option>`).join('')}</select></label><button class="button primary">Save class</button></form>
+      <form id="learnerForm" class="login-form"><h3>Add a learner</h3><label class="field">Learner full name<input name="name" required maxlength="100" placeholder="Fictional learner name"/></label><label class="field">Class<select name="classId" required>${options(classes,'id','name')}</select></label><label class="field">Unique admission number<input name="admissionNumber" required minlength="4" maxlength="32" placeholder="e.g. KG-2026-0001"/></label><label class="field">Verified date of birth (school record)<input name="birthDate" type="date" min="1990-01-01" max="${today()}" required /></label><p class="muted">Enter the date of birth from the school's verified record; this enables later guardian-request matching. Do not use a parent's unverified claim.</p><button class="button primary" ${classes.length?'':'disabled'}>Save learner</button></form></div></section>
       ${guardianReviewsPanel()}
       <section class="card panel">${heading('Secure access and assignments','Only school staff can approve parent links. Teachers need assigned classes.')}
       <div class="two-cols"><div class="empty-note"><h3>Parent-requested access</h3>Parents submit the learner’s name and date of birth in their app. Review the request above instead of manually linking accounts. Matching details do not replace proof of guardianship.</div>
@@ -258,7 +261,7 @@
   function documentsPage(){if(!extended)return extensionNotice();return `${hero('DOCUMENT LIBRARY','Every school document, in one secure place.','Upload, organise and share school documents with an actual private storage bucket.')}
     <div class="stats-grid">${stat('Total documents',extended.totals?.documentCount??docList().length,'Exact database count')}${stat('Published',docList().filter(d=>d.published).length,'Approved documents')}${stat('Categories',new Set(docList().map(d=>d.category)).size,'Organised library')}</div>
     <section class="card panel">${heading('Upload document','Private files · PDF, Word, Excel, PNG and JPG · maximum 15MB')}
-    <form id="documentForm" enctype="multipart/form-data"><div class="form-grid"><label class="field">Title<input name="title" required maxlength="160"/></label><label class="field">Category<select name="category">${['General','Policies','Forms','Assignments','Academics','Parent letters','Examinations'].map(k=>`<option>${k}</option>`).join('')}</select></label><label class="field">Audience<select name="grade"><option value="all">All grades</option>${Array.from({length:12},(_,i)=>`<option value="${i+1}">Grade ${i+1}</option>`).join('')}</select></label><label class="field">File<input name="file" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpeg,.jpg" required/></label><label class="field full">Description<textarea name="description" maxlength="2000"></textarea></label><label class="field checkbox-line"><input type="checkbox" name="published"/> Mark as published</label></div><button class="button primary" type="submit">Upload securely</button></form></section>
+    <form id="documentForm" enctype="multipart/form-data"><div class="form-grid"><label class="field">Title<input name="title" required maxlength="160"/></label><label class="field">Category<select name="category">${['General','Policies','Forms','Assignments','Academics','Parent letters','Examinations'].map(k=>`<option>${k}</option>`).join('')}</select></label><label class="field">Audience<select name="grade"><option value="all">All grades</option>${Array.from({length:5},(_,i)=>`<option value="${i+8}">Grade ${i+8}</option>`).join('')}</select></label><label class="field">File<input name="file" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpeg,.jpg" required/></label><label class="field full">Description<textarea name="description" maxlength="2000"></textarea></label><label class="field checkbox-line"><input type="checkbox" name="published"/> Mark as published</label></div><button class="button primary" type="submit">Upload securely</button></form></section>
     <section class="card panel">${heading('Manage documents',`Showing ${docList().length} recent documents · total ${extended.totals?.documentCount??docList().length}`)}<label class="field">Search documents<input id="docSearch" placeholder="Search title, category or grade"/></label>
     ${docList().length?`<div class="table-scroll"><table class="data-table"><thead><tr><th>Document</th><th>Category</th><th>Audience</th><th>Published</th><th>Actions</th></tr></thead><tbody>${docList().map(d=>`<tr data-doc-search="${esc((d.title+' '+d.category+' '+(d.grade||'all')).toLowerCase())}"><td><strong>${esc(d.title)}</strong><br><small class="muted">${esc(d.original_name)} · ${esc(dateLabel(d.created_at))}</small></td><td>${esc(d.category)}</td><td>${d.grade?'Grade '+d.grade:'All'}</td><td>${pill(d.published?'Published':'Draft',d.published?'pill-green':'pill-gold')}</td><td><div class="action-stack">${["application/pdf","image/jpeg","image/png"].includes(d.mime_type)?`<a class="button outline" target="_blank" rel="noopener" href="/api/extended/documents/${esc(d.id)}/preview">Preview</a>`:""}<a class="button outline" href="/api/extended/documents/${esc(d.id)}/download">Download</a><button class="button outline" data-doc-status="${esc(d.id)}" data-publish="${!d.published}">${d.published?'Unpublish':'Publish'}</button><button class="button danger-outline" data-delete-doc="${esc(d.id)}">Delete</button></div></td></tr>`).join('')}</tbody></table></div>`:empty('No documents uploaded yet.')}</section>`;}
   const reportList=()=>extended?.reports||[];
@@ -313,7 +316,7 @@
     }));
     $('newMarkForm')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.target),student=currentLearner();try{await post('/api/marks',{learnerId:student.id,subject:String(f.get('subject')).trim(),score:Number(f.get('score'))});await reload();toast('Subject result saved.');}catch(err){toast(err.message,true);}});
     $('eventForm')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.target);try{const payload={title:String(f.get('title')).trim(),description:String(f.get('description')||''),date:String(f.get('date')),grade:String(f.get('grade')),category:String(f.get('category')),time:String(f.get('time')||'')};if(editingEvent){await mutation('PUT',`/api/extended/events/${editingEvent}`,payload);editingEvent=null;}else await post('/api/events',payload);await reload();toast('School event saved.');}catch(err){toast(err.message,true);}});
-    $('announcementForm')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.target);try{const payload={title:String(f.get('title')).trim(),body:String(f.get('body')).trim(),grade:f.get('grade'),priority:f.get('priority')};if(editingAnnouncement){await mutation('PUT',`/api/extended/announcements/${editingAnnouncement}`,{announcement:payload,status:f.get('status')});editingAnnouncement=null;}else await post('/api/announcements',payload);await reload();toast('Announcement saved in Supabase.');}catch(err){toast(err.message,true);}});
+    $('announcementForm')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.target);try{const payload={title:String(f.get('title')).trim(),body:String(f.get('body')).trim(),grade:f.get('grade'),priority:f.get('priority')};if(editingAnnouncement){await mutation('PUT',`/api/extended/announcements/${editingAnnouncement}`,{announcement:payload,status:f.get('status')});editingAnnouncement=null;}else await post('/api/announcements',payload);await reload();toast('Saved');}catch(err){toast(err.message,true);}});
     document.querySelectorAll('[data-thread]').forEach(b=>b.addEventListener('click',async()=>{selectedGuardian=b.dataset.thread;render();if(extended)try{await post(`/api/extended/messages/${selectedGuardian}/read`,{});await loadExtension();}catch(e){toast(e.message,true);}}));
     $('messageForm')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.target);try{await post('/api/messages',{guardianId:selectedGuardian,text:String(f.get('text')).trim()});await reload();toast('Message sent to parent.');}catch(err){toast(err.message,true);}});
     document.querySelectorAll('[data-read]').forEach(b=>b.addEventListener('click',async()=>{try{await post(`/api/alerts/${encodeURIComponent(b.dataset.read)}/read`,{});await reload();}catch(err){toast(err.message,true);}}));
@@ -340,7 +343,7 @@
     $('learnerBirthdateForm')?.addEventListener('submit',async e=>{
       e.preventDefault();const f=new FormData(e.target);
       try{await mutation('PUT',`/api/extended/learners/${encodeURIComponent(String(f.get('learnerId')))}/birthdate`,
-        {date:String(f.get('date'))});await refreshGuardianRequests();render();toast('Learner birthdate saved privately.');}
+        {date:String(f.get('date'))});await refreshGuardianRequests();render();toast('Saved');}
       catch(err){toast(err.message,true);}
     });
     document.querySelectorAll('[data-guardian-review]').forEach(b=>b.addEventListener('click',async()=>{
@@ -348,10 +351,21 @@
       if(!confirm(approve?
         'Have you independently verified this person’s identity and guardianship? The name and DOB must match one learner. Approve access?':
         'Reject this parent request?'))return;
-      try{await post(`/api/extended/guardian-requests/${encodeURIComponent(b.dataset.guardianReview)}/review`,
-        {approve,note:''});await reload();await refreshAdmin();
-        toast(approve?'Verified parent access approved.':'Guardian request rejected.');}
-      catch(err){toast(err.message,true);}
+      b.disabled=true;
+      try{
+        const requestId=b.dataset.guardianReview;
+        const result=await post(`/api/extended/guardian-requests/${encodeURIComponent(requestId)}/review`,
+          {approve,note:''});
+        const expected=approve?'approved':'rejected';
+        if(result?.status!==expected || (approve&&!result?.learnerId))
+          throw new Error('The school did not confirm this request was saved. Please refresh and verify the status.');
+        await reload();await refreshAdmin();
+        const confirmed=(guardianReviews?.requests||[]).find(r=>r.id===requestId);
+        if(!confirmed || confirmed.status!==expected)
+          throw new Error('The review was processed, but its latest status could not be confirmed. Refresh the request list.');
+        toast(approve?'Approved — learner linked.':'Request rejected.');
+      }catch(err){toast(err.message,true);}
+      finally{b.disabled=false;}
     }));
     // V5 features: all data mutations go to ASP.NET then Supabase RLS.
     $('learnerSearch')?.addEventListener('input',e=>{const q=e.target.value.toLowerCase();document.querySelectorAll('[data-learner-search]').forEach(el=>el.hidden=!el.dataset.learnerSearch.includes(q));});
@@ -377,16 +391,16 @@
     $('reportSelector')?.addEventListener('change',e=>{selectedReport=e.target.value;render();});
     $('reportMarkForm')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.target);try{await post(`/api/extended/reports/${selectedReport}/marks`,{subject:String(f.get('subject')),percentage:Number(f.get('percentage'))});await reload();toast('Report mark saved.');}catch(err){toast(err.message,true);}});
     $('reportStatusForm')?.addEventListener('submit',async e=>{e.preventDefault();const b=e.submitter;if(!b?.dataset.reportPublish)return;if(!confirm(b.dataset.reportPublish==='true'?'Publish this report card?':'Unpublish this report card for correction?'))return;const f=new FormData(e.target);try{await mutation('PATCH',`/api/extended/reports/${selectedReport}/publication`,{published:b.dataset.reportPublish==='true',comment:String(f.get('comment')||'')});await reload();toast('Report status saved.');}catch(err){toast(err.message,true);}});
-    $('printReportCard')?.addEventListener('click',()=>{const el=$('reportPrint');if(!el)return;const win=window.open('','_blank','width=850,height=900');if(!win){toast('Allow pop-ups to print the report.',true);return;}win.document.write(`<html><head><title>Academic report</title><style>body{font:16px Arial;margin:48px;color:#173f38}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{padding:12px;border:1px solid #b5d3ca;text-align:left}h2{margin-top:28px}.report-heading{display:flex;justify-content:space-between;border-bottom:3px solid #096a53;padding-bottom:15px}</style></head><body>${el.innerHTML}</body></html>`);win.document.close();win.focus();win.print();});
+    $('printReportCard')?.addEventListener('click',()=>{const el=$('reportPrint');if(!el)return;const win=window.open('','_blank','width=850,height=900');if(!win){toast('Allow pop-ups to print the report.',true);return;}win.document.write(`<html><head><title>Academic report</title><style>body{font:16px Arial;margin:48px;color:#123F6A}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{padding:12px;border:1px solid #C2E3F6;text-align:left}h2{margin-top:28px}.report-heading{display:flex;justify-content:space-between;border-bottom:3px solid #087FC0;padding-bottom:15px}</style></head><body>${el.innerHTML}</body></html>`);win.document.close();win.focus();win.print();});
     document.querySelectorAll('[data-view-message]').forEach(b=>b.addEventListener('click',()=>{selectedGuardian=b.dataset.viewMessage;goto('messages');}));
     for(const [formId,url,make] of [
       ['classForm','/api/admin/classes',f=>({name:String(f.get('name')).trim(),grade:Number(f.get('grade'))})],
-      ['learnerForm','/api/admin/learners',f=>({name:String(f.get('name')).trim(),classId:String(f.get('classId')),admissionNumber:String(f.get('admissionNumber')).trim()})],
+      ['learnerForm','/api/admin/learners',f=>({name:String(f.get('name')).trim(),classId:String(f.get('classId')),admissionNumber:String(f.get('admissionNumber')).trim(),birthDate:String(f.get('birthDate'))})],
       ['guardianLinkForm','/api/admin/link-guardian',f=>({userId:String(f.get('userId')),learnerId:String(f.get('learnerId'))})],
       ['assignClassForm','/api/admin/assign-teacher',f=>({userId:String(f.get('userId')),classId:String(f.get('classId'))})]
     ]){
       $(formId)?.addEventListener('submit',async e=>{e.preventDefault();const button=e.target.querySelector('button[type="submit"],button');if(button)button.disabled=true;
-        try{await post(url,make(new FormData(e.target)));await reload();await refreshAdmin();toast('Saved successfully to Supabase.');}
+        try{await post(url,make(new FormData(e.target)));await reload();await refreshAdmin();toast('Saved');}
         catch(err){toast(err.message,true);if(button)button.disabled=false;}
       });
     }
