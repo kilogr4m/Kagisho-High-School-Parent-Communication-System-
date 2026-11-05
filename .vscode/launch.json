@@ -1,0 +1,1 @@
+{"version":"0.2.0","configurations":[{"name":"Kagisho Connect Parent (Chrome · saved Supabase)","type":"dart","request":"launch","deviceId":"chrome","program":"lib/main.dart","toolArgs":["--dart-define-from-file=config/supabase.local.json"]}]}

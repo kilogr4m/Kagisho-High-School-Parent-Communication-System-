@@ -1,0 +1,77 @@
+  Widget homePage() => ListView(padding: const EdgeInsets.fromLTRB(19, 22, 19, 36), children: [
+    heroPanel(),
+    const SizedBox(height: 29),
+    if (child != null) ...[
+      familyPicker(),
+      SectionTitle('Your child', subtitle: 'A quick look at the school day',
+        action: 'View profile', onTap: () => selectTab(1)),
+      SoftCard(onTap: () => selectTab(1), child: Row(children: [
+        Container(width: 59, height: 59,
+          decoration: BoxDecoration(color: Brand.mint, borderRadius: BorderRadius.circular(20)),
+          child: const Icon(Icons.face_rounded, color: Brand.green, size: 31)),
+        const SizedBox(width: 15),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(childName, style: const TextStyle(fontSize: 18,
+            fontWeight: FontWeight.w900, color: Brand.ink)),
+          const SizedBox(height: 5),
+          Text(selectedClass, style: const TextStyle(color: Brand.muted, fontSize: 13)),
+        ])),
+        const Icon(Icons.chevron_right_rounded, color: Brand.green),
+      ])),
+      const SizedBox(height: 16),
+      LayoutBuilder(builder: (context, c) {
+        final gap = c.maxWidth < 370 ? 8.0 : 12.0;
+        return Row(children: [
+          Expanded(child: statCard(presentDays==1?'Day present':'Days present', '$presentDays', Icons.how_to_reg_rounded)),
+          SizedBox(width: gap),
+          Expanded(child: statCard('Academic avg.', average == null ? '—' : '$average%',
+            Icons.trending_up_rounded, tint: const Color(0xFFEBF1FF),
+            inkColor: const Color(0xFF627ED2))),
+          SizedBox(width: gap),
+          Expanded(child: statCard('New alerts', '$unread', Icons.notifications_active_outlined,
+            tint: Brand.softAmber, inkColor: Brand.amber)),
+        ]);
+      }),
+    ] else ...[
+      const EmptyPanel(icon: Icons.verified_user_outlined, heading: 'School verification pending',
+        detail: 'Request a learner link below. The school must verify your guardianship before access is granted.'),
+      const SizedBox(height: 14), claimPanel(),
+    ],
+    const SizedBox(height: 30),
+    const SectionTitle('Quick access', subtitle: 'Everything you need, one tap away'),
+    LayoutBuilder(builder: (context, c) {
+      final wide = c.maxWidth >= 700;
+      final first = quickAction('Messages', 'Talk to the school', Icons.chat_bubble_outline_rounded, 3);
+      final second = quickAction('Announcements', 'Latest school updates', Icons.campaign_outlined, 2,
+        color: const Color(0xFFF2EFFF), iconColor: const Color(0xFF816AC8));
+      final third = quickAction('Attendance', 'View learner history', Icons.calendar_month_outlined, 1);
+      final fourth = quickAction('Alerts', 'Important updates', Icons.notifications_none_rounded, 4,
+        color: Brand.softAmber, iconColor: Brand.amber);
+      if (!wide) return Column(children: [
+        first, const SizedBox(height: 10), second, const SizedBox(height: 10),
+        third, const SizedBox(height: 10), fourth, const SizedBox(height: 10),
+        quickAction('Report cards', 'View and save official PDF reports', Icons.picture_as_pdf_outlined, 1),
+        const SizedBox(height:10), quickAction('Documents', 'Download school letters and forms', Icons.folder_open_outlined, 2),
+      ]);
+      return Column(children: [
+        Row(children: [Expanded(child: first), const SizedBox(width: 12), Expanded(child: second)]),
+        const SizedBox(height: 12),
+        Row(children: [Expanded(child: third), const SizedBox(width: 12), Expanded(child: fourth)]),
+        const SizedBox(height: 12), Row(children: [
+          Expanded(child: quickAction('Report cards', 'Official PDF reports', Icons.picture_as_pdf_outlined, 1)),
+          const SizedBox(width:12),
+          Expanded(child: quickAction('Documents', 'School letters and forms', Icons.folder_open_outlined, 2)),
+        ]),
+      ]);
+    }),
+    const SizedBox(height: 31),
+    SectionTitle('From your school', subtitle: 'The latest news and notices',
+      action: 'All updates', onTap: () => selectTab(2)),
+    if (news.isEmpty) const EmptyPanel(icon: Icons.markunread_mailbox_outlined,
+      heading: 'All caught up', detail: 'New school announcements will appear here.')
+    else ...news.take(2).map((item) => Padding(padding: const EdgeInsets.only(bottom: 12),
+      child: announcementCard(item))),
+  ]);
+
+  // Premium learner overview: layout-only enhancements to existing school data.
+  // All scores, attendance records, and child identity still come from Supabase.

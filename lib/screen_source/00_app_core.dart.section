@@ -1,0 +1,248 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+// Kagisho Connect · Parent Experience — Premium Edition
+// Presentation-only redesign. The original Supabase tables and queries are retained.
+class Brand {
+  static const forest = Color(0xFF103F65);
+  static const green = Color(0xFF0786C7);
+  static const sea = Color(0xFF36B5EC);
+  static const mint = Color(0xFFE5F5FE);
+  static const lime = Color(0xFFBEEAFF);
+  static const ink = Color(0xFF173C59);
+  static const muted = Color(0xFF67849B);
+  static const background = Color(0xFFF5FAFF);
+  static const border = Color(0xFFDDEEF7);
+  static const amber = Color(0xFFDD864A);
+  static const softAmber = Color(0xFFFFF2E8);
+  static const white = Colors.white;
+}
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  const url = String.fromEnvironment('SUPABASE_URL');
+  const key = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+  if (url.isEmpty || key.isEmpty) {
+    runApp(const MaterialApp(home: Scaffold(body: Center(
+      child: Padding(padding: EdgeInsets.all(24), child: Text(
+        'Kagisho Connect needs SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY. See README.md.',
+        textAlign: TextAlign.center))))));
+    return;
+  }
+  await Supabase.initialize(url: url, anonKey: key);
+  runApp(const KagishoApp());
+}
+
+final _db = Supabase.instance.client;
+String textValue(dynamic value) => value?.toString() ?? '';
+String greetingName(String? name) {
+  final value = (name ?? '').trim();
+  return value.isEmpty ? 'there' : value.split(' ').first;
+}
+String dateTimeLabel(dynamic value) {
+  final date = DateTime.tryParse(textValue(value));
+  if (date == null) return textValue(value);
+  final local = date.toLocal();
+  return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year}';
+}
+String friendlyDate(dynamic value) {
+  final date = DateTime.tryParse(textValue(value));
+  if (date == null) return textValue(value);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  final local = date.toLocal();
+  return '${local.day} ${months[local.month - 1]} ${local.year}';
+}
+String clockLabel(dynamic value) {
+  final date = DateTime.tryParse(textValue(value));
+  if (date == null) return '';
+  final local = date.toLocal();
+  return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+}
+
+class KagishoApp extends StatelessWidget {
+  const KagishoApp({super.key});
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    title: 'Kagisho Connect',
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData(
+      useMaterial3: true,
+      scaffoldBackgroundColor: Brand.background,
+      colorScheme: ColorScheme.fromSeed(seedColor: Brand.green, primary: Brand.green,
+        surface: Brand.white, brightness: Brightness.light),
+      textTheme: const TextTheme(
+        headlineLarge: TextStyle(color: Brand.ink, fontWeight: FontWeight.w900, letterSpacing: -1.0),
+        headlineMedium: TextStyle(color: Brand.ink, fontWeight: FontWeight.w900, letterSpacing: -0.7),
+        titleLarge: TextStyle(color: Brand.ink, fontWeight: FontWeight.w800, letterSpacing: -0.4),
+        titleMedium: TextStyle(color: Brand.ink, fontWeight: FontWeight.w800),
+        bodyLarge: TextStyle(color: Brand.ink),
+        bodyMedium: TextStyle(color: Brand.ink),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Brand.white,
+        hintStyle: const TextStyle(color: Brand.muted),
+        labelStyle: const TextStyle(color: Brand.muted),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: Brand.border)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: Brand.border)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: Brand.green, width: 1.6)),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(style: ElevatedButton.styleFrom(
+        minimumSize: const Size.fromHeight(54), backgroundColor: Brand.green,
+        foregroundColor: Brand.white, elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+      )),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: Brand.forest, contentTextStyle: const TextStyle(color: Colors.white),
+        behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    ),
+    home: const AppGate(),
+  );
+}
+
+class KagishoLogo extends StatelessWidget {
+  final bool inverse;
+  final double size;
+  const KagishoLogo({super.key, this.inverse = false, this.size = 40});
+  @override
+  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
+    Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+          colors: inverse ? [Brand.lime, const Color(0xFF9CDFFF)] : [Brand.green, Brand.forest]),
+        borderRadius: BorderRadius.circular(size * .32),
+      ),
+      child: Icon(Icons.auto_stories_rounded, size: size * .55,
+        color: inverse ? Brand.forest : Brand.white),
+    ),
+    const SizedBox(width: 11),
+    Text('kagisho', style: TextStyle(fontSize: size * .51, color: inverse ? Colors.white : Brand.ink,
+      fontWeight: FontWeight.w900, letterSpacing: -.8)),
+    Text(' connect', style: TextStyle(fontSize: size * .51,
+      color: inverse ? Brand.lime : Brand.green, fontWeight: FontWeight.w600, letterSpacing: -.8)),
+  ]);
+}
+
+class SoftCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsets padding;
+  final VoidCallback? onTap;
+  final Color color;
+  const SoftCard({super.key, required this.child, this.onTap,
+    this.padding = const EdgeInsets.all(20), this.color = Brand.white});
+  @override
+  Widget build(BuildContext context) {
+    final content = Container(
+      width: double.infinity, padding: padding,
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Brand.border),
+        boxShadow: const [BoxShadow(color: Color(0x070D4233), blurRadius: 24, offset: Offset(0, 10))]),
+      child: child,
+    );
+    return onTap == null ? content : InkWell(
+      onTap: onTap, borderRadius: BorderRadius.circular(24), child: content);
+  }
+}
+
+class SectionTitle extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final String? action;
+  final VoidCallback? onTap;
+  const SectionTitle(this.title, {super.key, this.subtitle, this.action, this.onTap});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 16), child: Row(children: [
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900,
+          color: Brand.ink, letterSpacing: -.5)),
+        if (subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(subtitle!, style: const TextStyle(fontSize: 13, color: Brand.muted)),
+        ],
+      ])),
+      if (action != null) TextButton(onPressed: onTap,
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(action!, style: const TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(width: 2), const Icon(Icons.arrow_forward_rounded, size: 17),
+        ])),
+    ]),
+  );
+}
+
+class IconBadge extends StatelessWidget {
+  final IconData icon;
+  final Color background;
+  final Color foreground;
+  final double size;
+  const IconBadge(this.icon, {super.key, this.background = Brand.mint,
+    this.foreground = Brand.green, this.size = 46});
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size, height: size,
+    decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(size * .34)),
+    child: Icon(icon, color: foreground, size: size * .49));
+}
+
+class StatusChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  final Color background;
+  const StatusChip(this.label, {super.key, this.color = Brand.green, this.background = Brand.mint});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+    decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(99)),
+    child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 11)),
+  );
+}
+
+class EmptyPanel extends StatelessWidget {
+  final IconData icon;
+  final String heading;
+  final String detail;
+  const EmptyPanel({super.key, required this.icon, required this.heading, required this.detail});
+  @override
+  Widget build(BuildContext context) => SoftCard(child: Padding(
+    padding: const EdgeInsets.symmetric(vertical: 23, horizontal: 12),
+    child: Column(children: [
+      IconBadge(icon, size: 58), const SizedBox(height: 16),
+      Text(heading, textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 16, color: Brand.ink, fontWeight: FontWeight.w900)),
+      const SizedBox(height: 6),
+      Text(detail, textAlign: TextAlign.center, style: const TextStyle(color: Brand.muted, height: 1.5)),
+    ]),
+  ));
+}
+
+class AppGate extends StatefulWidget {
+  const AppGate({super.key});
+  @override
+  State<AppGate> createState() => _AppGateState();
+}
+class _AppGateState extends State<AppGate> {
+  StreamSubscription<AuthState>? sub;
+  @override
+  void initState() {
+    super.initState();
+    sub = _db.auth.onAuthStateChange.listen((_) { if (mounted) setState(() {}); });
+  }
+  @override
+  void dispose() { sub?.cancel(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) => _db.auth.currentSession == null
+    ? const AuthScreen() : const ParentShell();
+}
+
