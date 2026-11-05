@@ -1,5 +1,0 @@
-@{ Layout=null; ViewData["Title"]="Reset password | Kagisho Connect"; }
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>@ViewData["Title"]</title><link rel="stylesheet" href="/css/site.css"/></head><body class="login-body"><main class="auth-center"><div class="login-card"><div class="brand"><span class="brand-icon">✦</span><div><strong>Kagisho<span>Connect</span></strong></div></div><span class="eyebrow">ACCOUNT RECOVERY</span><h2>Forgot your password?</h2><p>Enter your email address and we'll send instructions if your account exists.</p>
-@if(ViewBag.Success != null){<div class="auth-success">@ViewBag.Success</div>}
-else {<form class="login-form" method="post" action="/forgot-password">@Html.AntiForgeryToken()<label class="field"><span>Email address</span><input type="email" name="email" maxlength="254" required/></label><button type="submit" class="button primary login-button">Send reset email →</button></form>}
-<div class="auth-register"><a href="/login">Back to sign in</a></div></div></main></body></html>
