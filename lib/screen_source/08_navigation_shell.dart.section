@@ -1,0 +1,109 @@
+  Widget activePage() {
+    switch (tab) {
+      case 1: return learnerPage();
+      case 2: return schoolPage();
+      case 3: return messagesPage();
+      case 4: return alertsPage();
+      default: return homePage();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, bounds) {
+    final desktop = bounds.maxWidth >= 960;
+    final tabs = [
+      (Icons.space_dashboard_outlined, Icons.space_dashboard_rounded, 'Home'),
+      (Icons.family_restroom_outlined, Icons.family_restroom_rounded, 'Children'),
+      (Icons.campaign_outlined, Icons.campaign_rounded, 'News'),
+      (Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded, 'Messages'),
+      (Icons.notifications_none_rounded, Icons.notifications_rounded, 'Alerts'),
+    ];
+    Widget body;
+    if (loading) {
+      body = const Center(child: CircularProgressIndicator(color: Brand.green));
+    } else if (error != null) {
+      body = Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 430),
+        child: Padding(padding: const EdgeInsets.all(22), child: Column(
+          mainAxisSize: MainAxisSize.min, children: [
+            const IconBadge(Icons.wifi_off_rounded, size: 62,
+              background: Brand.softAmber, foreground: Brand.amber),
+            const SizedBox(height: 16),
+            const Text('We couldn’t load your updates', style: TextStyle(
+              fontSize: 18, fontWeight: FontWeight.w900, color: Brand.ink)),
+            const SizedBox(height: 8),
+            Text(error!, textAlign: TextAlign.center,
+              style: const TextStyle(color: Brand.muted, height: 1.5)),
+            const SizedBox(height: 18),
+            ElevatedButton(onPressed: load, child: const Text('Try again')),
+          ]))));
+    } else if (tab == 3) {
+      body = contentWrap(activePage());
+    } else {
+      body = RefreshIndicator(onRefresh: load, child: contentWrap(activePage()));
+    }
+    return Scaffold(
+      appBar: AppBar(toolbarHeight: 73, backgroundColor: Brand.white,
+        surfaceTintColor: Brand.white, scrolledUnderElevation: 0,
+        titleSpacing: desktop ? 28 : 17,
+        title: KagishoLogo(size: desktop ? 41 : 34),
+        actions: [
+          if (desktop) const Padding(padding: EdgeInsets.only(right: 14),
+            child: Center(child: Text('PARENT PORTAL', style: TextStyle(
+              fontSize: 11, letterSpacing: 1.4, fontWeight: FontWeight.w900,
+              color: Brand.muted)))),
+          IconButton(tooltip: 'Refresh information', onPressed: load,
+            icon: const Icon(Icons.refresh_rounded, color: Brand.green)),
+          PopupMenuButton<String>(tooltip: 'Account', icon: const CircleAvatar(
+            radius: 18, backgroundColor: Brand.mint,
+            child: Icon(Icons.person_outline_rounded, color: Brand.green, size: 20)),
+            onSelected: (action) async {
+              if (action == 'logout') await _db.auth.signOut();
+            }, itemBuilder: (context) => [
+              const PopupMenuItem(value: 'logout', child: Row(children: [
+                Icon(Icons.logout_rounded, color: Brand.green, size: 18),
+                SizedBox(width: 10), Text('Sign out'),
+              ])),
+            ]),
+          const SizedBox(width: 12),
+        ],
+      ),
+      body: desktop ? Row(children: [
+        Container(width: 236, color: Brand.white,
+          padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 27),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Padding(padding: EdgeInsets.fromLTRB(14, 0, 0, 23),
+              child: Text('MY FAMILY', style: TextStyle(color: Brand.muted,
+                fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.4))),
+            for (var i = 0; i < tabs.length; i++)
+              navigationTile(tabs[i].$1, tabs[i].$3, i),
+            const Spacer(),
+            Container(padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Brand.mint,
+                borderRadius: BorderRadius.circular(18)),
+              child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Icon(Icons.favorite_outline_rounded, color: Brand.green, size: 23),
+                SizedBox(height: 11),
+                Text('A stronger school connection.', style: TextStyle(
+                  color: Brand.forest, fontWeight: FontWeight.w900)),
+                SizedBox(height: 5),
+                Text('Made for families.', style: TextStyle(color: Brand.green, fontSize: 12)),
+              ])),
+          ]),
+        ),
+        Expanded(child: body),
+      ]) : body,
+      bottomNavigationBar: desktop ? null : NavigationBar(
+        height: 74, backgroundColor: Brand.white,
+        indicatorColor: Brand.mint, elevation: 0,
+        selectedIndex: tab, labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        onDestinationSelected: selectTab,
+        destinations: [
+          for (var i = 0; i < tabs.length; i++) NavigationDestination(
+            icon: i == 4 && unread > 0 ? Badge(label: Text('$unread'),
+              child: Icon(tabs[i].$1)) : Icon(tabs[i].$1),
+            selectedIcon: Icon(tabs[i].$2, color: Brand.green), label: tabs[i].$3),
+        ],
+      ),
+    );
+  });
+}

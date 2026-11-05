@@ -1,0 +1,99 @@
+  Future<void> sendMessage(String message) async {
+    if (message.trim().isEmpty || message.length > 1000) return;
+    final user = _db.auth.currentUser;
+    if (user == null) return;
+    try {
+      await _db.from('kc_messages').insert({
+        'guardian_id': user.id, 'sender_id': user.id, 'body': message.trim(),
+      });
+      await load(silent: true);
+    } on PostgrestException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not send your message. Try again.')));
+    }
+  }
+
+  Widget messagesPage() => Column(children: [
+    Container(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      color: Brand.white,
+      child: Row(children: [
+        const IconBadge(Icons.support_agent_rounded, size: 48),
+        const SizedBox(width: 12),
+        const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('School messages', style: TextStyle(fontWeight: FontWeight.w900,
+            color: Brand.ink, fontSize: 17)),
+          SizedBox(height: 3),
+          Text('Your private conversation with the school',
+            style: TextStyle(color: Brand.muted, fontSize: 12)),
+        ])),
+        IconButton(tooltip: 'Refresh conversation', onPressed: load,
+          icon: const Icon(Icons.refresh_rounded, color: Brand.green)),
+      ])),
+    Expanded(child: messages.isEmpty
+      ? Center(child: Padding(padding: const EdgeInsets.all(22),
+          child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 410),
+            child: const EmptyPanel(icon: Icons.forum_outlined,
+              heading: 'Your conversation starts here',
+              detail: 'Messages from your school will appear here. Once your learner is verified, you can write to the school.'))))
+      : ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 19, vertical: 25),
+          itemCount: messages.length,
+          itemBuilder: (context, index) {
+            final item = messages[index];
+            final mine = item['sender_id'] == _db.auth.currentUser?.id;
+            return Align(alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+              child: ConstrainedBox(constraints: BoxConstraints(
+                maxWidth: MediaQuery.sizeOf(context).width > 650 ? 440 :
+                  MediaQuery.sizeOf(context).width * .81),
+                child: Container(margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: mine ? Brand.green : Brand.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(20), topRight: const Radius.circular(20),
+                      bottomLeft: Radius.circular(mine ? 20 : 5),
+                      bottomRight: Radius.circular(mine ? 5 : 20)),
+                    border: mine ? null : Border.all(color: Brand.border)),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(mine ? 'You' : 'School staff', style: TextStyle(
+                      color: mine ? Brand.lime : Brand.green,
+                      fontSize: 11, fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 7),
+                    Text(textValue(item['body']), style: TextStyle(
+                      color: mine ? Colors.white : Brand.ink, height: 1.5)),
+                    const SizedBox(height: 7),
+                    Text('${friendlyDate(item['created_at'])}  ${clockLabel(item['created_at'])}',
+                      style: TextStyle(color: mine ? Colors.white70 : Brand.muted,
+                        fontSize: 11)),
+                  ])),
+              ));
+          })),
+    SafeArea(top: false, child: Container(
+      decoration: const BoxDecoration(color: Brand.white,
+        border: Border(top: BorderSide(color: Brand.border))),
+      padding: const EdgeInsets.fromLTRB(15, 12, 15, 13),
+      child: Row(children: [
+        Expanded(child: TextField(controller: composer, maxLength: 1000,
+          minLines: 1, maxLines: 4, enabled: children.isNotEmpty,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(hintText: children.isEmpty
+            ? 'Waiting for learner verification...' : 'Write a message...',
+            counterText: '', fillColor: Brand.background,
+            prefixIcon: const Icon(Icons.edit_note_rounded, color: Brand.muted)))),
+        const SizedBox(width: 10),
+        Container(width: 52, height: 52,
+          decoration: BoxDecoration(color: children.isNotEmpty ? Brand.green : Brand.border,
+            borderRadius: BorderRadius.circular(17)),
+          child: IconButton(tooltip: 'Send message',
+            onPressed: children.isEmpty ? null : () {
+              final value = composer.text;
+              if (value.trim().isEmpty) return;
+              composer.clear(); sendMessage(value);
+            }, icon: const Icon(Icons.arrow_upward_rounded, color: Brand.white)),
+        ),
+      ]),
+    )),
+  ]);
+

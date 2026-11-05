@@ -1,0 +1,9 @@
+00_app_core.dart.section
+01_auth.dart.section
+02_parent_shell_state.dart.section
+03_home.dart.section
+04_children.dart.section
+05_news.dart.section
+06_messages.dart.section
+07_alerts.dart.section
+08_navigation_shell.dart.section
