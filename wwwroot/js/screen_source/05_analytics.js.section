@@ -1,0 +1,30 @@
+  async function refreshInsights(){
+    if(!extended)return;
+    insightBusy=true;insightError='';
+    try{insightMetrics=await post('/api/extended/attendance/summary',{
+      start:insightFrom||String(new Date().getFullYear())+'-01-01',end:insightTo||today(),grade:insightGrade,classId:insightClass});
+    }catch(e){insightMetrics=null;insightError=e.message;}
+    finally{insightBusy=false;if(page==='insights')render();}
+  }
+  function insightsPage(){const data=insightMetrics,total=Number(data?.total||0),present=Number(data?.present||0),absent=Number(data?.absent||0),late=Number(data?.late||0);
+    const gradeGroups=[...new Set(lrn().map(grade))].sort((a,b)=>Number(a)-Number(b));
+    const subjectMarks=lrn().flatMap(l=>(l.marks||[]).map(m=>({...m,grade:grade(l)}))).filter(m=>insightGrade==='all'||m.grade===insightGrade);
+    const subjects=[...new Set(subjectMarks.map(m=>m.subject))];
+    return `${hero('SCHOOL ANALYTICS','Make informed decisions with real data.','Attendance totals are aggregated by the database across the full chosen period, never estimated from a 1,000-row sample.')}
+    <section class="card panel">${heading('Report filters','Default: academic year to date. Use any date range up to 730 days.')}
+    <div class="form-grid"><label class="field">From<input type="date" id="insightFrom" value="${esc(insightFrom||String(new Date().getFullYear())+'-01-01')}"/></label>
+    <label class="field">To<input type="date" id="insightTo" value="${esc(insightTo||today())}"/></label>
+    <label class="field">Grade<select id="insightGrade"><option value="all">All grades</option>${gradeGroups.map(g=>`<option value="${esc(g)}" ${insightGrade===g?'selected':''}>Grade ${esc(g)}</option>`).join('')}</select></label>
+    <label class="field">Class<select id="insightClass"><option value="all">All classes</option>${cls().filter(c=>insightGrade==='all'||String(c.grade)===insightGrade).map(c=>`<option value="${esc(c.id)}" ${insightClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label></div>
+    <div class="quick-grid"><button class="button outline" data-report-preset="today">Today</button><button class="button outline" data-report-preset="week">7 days</button><button class="button outline" data-report-preset="month">30 days</button><button class="button outline" data-report-preset="year">Year to date</button></div>
+    <div class="form-actions"><button class="button outline" id="exportAttendanceCsv" ${data?'':'disabled'}>Download class summary CSV (Excel)</button><button class="button outline" id="printInsights">Print / Save PDF</button><button class="button outline" id="clearInsights">Clear filters</button></div>
+    ${insightBusy?empty('Loading fresh database analytics…'):insightError?`<div class="empty-note">${esc(insightError)}</div>`:!data?empty('Select filters to load database attendance statistics.'):''}</section>
+    <div class="stats-grid">${stat('Attendance entries',data?total:'—','All dates in the selected period')}${stat('Present',data?present:'—','Submitted statuses')}${stat('Absent',data?absent:'—','Submitted statuses')}${stat('Late',data?late:'—','Submitted statuses')}${stat('Attendance rate',data&&total?Math.round(100*present/total)+'%':'—','Present ÷ all statuses')}</div>
+    <div class="two-cols"><section class="card panel">${heading('Attendance by class','Full database totals within selected dates')}
+    ${(data?.classes||[]).map(c=>{const rate=Number(c.total)>0?Math.round(Number(c.present)/Number(c.total)*100):0;return `<div class="chart-item"><div class="row"><span>${esc(c.className)}</span><strong>${rate}% · ${esc(c.total)} entries</strong></div><div class="chart-track"><div class="chart-bar" style="width:${rate}%"></div></div></div>`;}).join('')||empty('No submitted attendance for this selection.')}</section>
+    <section class="card panel">${heading('Subject performance','Current quick marks for visible learners')}
+    ${subjects.map(sub=>{const x=subjectMarks.filter(m=>m.subject===sub),rate=Math.round(x.reduce((a,m)=>a+m.score,0)/x.length);return `<div class="chart-item"><div class="row"><span>${esc(sub)}</span><strong>${rate}% · ${x.length} result(s)</strong></div><div class="chart-track"><div class="chart-bar" style="width:${rate}%"></div></div></div>`;}).join('')||empty('No subject results recorded.')}</section></div>
+    <section class="card panel">${heading('Learners requiring attendance follow-up','Two or more absences during the chosen period')}
+      ${(data?.frequentAbsences||[]).map(r=>`<div class="feed-item"><div class="feed-copy"><strong>${esc(r.learnerName)}</strong><small> Learner UUID: ${esc(r.learnerId)}</small></div><span>${esc(r.absences)} absences</span></div>`).join('')||empty('No learner has two or more recorded absences in this period.')}</section>`;
+  }
+

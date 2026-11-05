@@ -1,0 +1,10 @@
+00_core.js.section
+01_dashboard.js.section
+02_parents.js.section
+03_announcements_calendar.js.section
+04_attendance_marks_messages.js.section
+05_analytics.js.section
+06_staff.js.section
+07_guardians_learners.js.section
+08_documents_reports.js.section
+09_page_navigation_events.js.section

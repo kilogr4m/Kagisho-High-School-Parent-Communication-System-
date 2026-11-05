@@ -1,0 +1,123 @@
+  function pageBody(){switch(page){case 'staff':return staffPage();case 'manage':return managePage();case 'events':return eventPage();case 'reports':return reportsPage();case 'documents':return documentsPage();case 'notifications':return notificationsPage();case 'audit':return auditPage();case 'rollcall':return rollPage();case 'learners':return learnersPage();case 'learning':return parentLearning();case 'attendance':return parentAttendance();case 'alerts':return alertsPage();case 'announcements':return announcementPage();case 'messages':return messagePage();case 'insights':return insightsPage();default:return staff()?staffDashboard():parentDashboard();}}
+  function render(){const nav=admin()?[...navStaff,['manage','users','Manage learners'],['staff','users','Manage staff'],['audit','shield','Audit trail']]:navStaff;const titles={dashboard:staff()?'School overview':'Your home',rollcall:'Take attendance',learners:'Learners & marks',learning:'Learning progress',attendance:'Attendance',alerts:'Family alerts',announcements:'School news',events:'School calendar',messages:'Messages',insights:'School insights',reports:'Report cards',documents:'Documents',notifications:'Staff notifications',audit:'Audit trail',staff:'Staff directory',manage:'Manage learners'};
+    const count=store.alerts?.filter(a=>!a.isRead).length||0;
+    $('app').innerHTML=`<div class="layout"><aside class="sidebar"><div class="brand"><span class="brand-icon">${icon('sparkle',22)}</span><div><strong>Kagisho<span>Connect</span></strong><small>Better together, every day.</small></div></div><div class="menu-label">${staff()?'SCHOOL WORKSPACE':'PARENT SPACE'}</div><nav class="side-nav" aria-label="Primary navigation">${nav.map(([id,ico,name])=>`<button type="button" data-go="${id}" class="nav-link ${page===id?'active':''}" ${page===id?'aria-current="page"':''}>${icon(ico,19)} <span>${esc(name)}</span>${id==='alerts'&&count?`<span class="notification-count">${count}</span>`:''}</button>`).join('')}</nav><div class="sidebar-bottom"><div class="comfort-icon">${icon('shield',22)}</div><strong>Made for real school days.</strong><p>Simple tools for families and the people who teach their children.</p></div><div class="sidebar-meta">Kagisho High School · ELEV8</div></aside>
+    <div class="main-shell"><header class="topbar"><div class="crumb">Kagisho Connect <span>›</span> ${esc(titles[page]||'Overview')}</div><div class="top-right">${staff()?'':''}${!staff()?`<button class="icon-button" data-go="alerts" title="View alerts">${icon('bell',20)}${count?'<span class="notif-dot"></span>':''}</button>`:''}<span class="mini-avatar">${esc((session.name||'KC').split(' ').map(s=>s[0]).join(''))}</span><form action="/logout" method="post"><input type="hidden" name="__RequestVerificationToken" value="${esc(csrf)}"><button class="quiet-btn" type="submit">Sign out</button></form></div></header>
+    <main class="main"><div class="page-head"><div><div class="eyebrow">${staff()?'SCHOOL PORTAL':'FAMILY PORTAL'}</div><h1>${esc(titles[page]||'Overview')}</h1><p>Welcome, ${esc(session.name)}.</p></div></div>${pageBody()}<footer class="footer"><span>© 2026 Kagisho Connect · ELEV8 · School & family communication</span><span>School & family, connected</span></footer></main></div></div>`;
+    handlers();
+  }
+  function restoreDraft(){const current=roll();draft={};for(const l of lrn().filter(x=>x.classId===selectedClass)){if(current?.statuses?.[l.id])draft[l.id]=current.statuses[l.id];}}
+  function goto(id){if((id==='staff'||id==='manage'||id==='audit')&&!admin())return;page=id;render();if(id==='staff')refreshStaff();if(id==='manage')refreshAdmin();if(id==='insights')refreshInsights();window.scrollTo(0,0);}
+  function handlers(){
+    document.querySelectorAll('[data-go]').forEach(x=>x.addEventListener('click',()=>goto(x.dataset.go)));
+    $('childPicker')?.addEventListener('change',e=>{selectedChild=e.target.value;render();});
+    $('staffLearner')?.addEventListener('change',e=>{selectedLearner=e.target.value;render();});
+    $('classPicker')?.addEventListener('change',e=>{selectedClass=e.target.value;restoreDraft();render();});
+    $('rollDate')?.addEventListener('change',e=>{rollDate=e.target.value;restoreDraft();render();});
+    $('markPresent')?.addEventListener('click',()=>{for(const l of lrn().filter(l=>l.classId===selectedClass))draft[l.id]='Present';render();toast('Everyone marked present. You can now record any absence before submitting.');});
+    document.querySelectorAll('[data-attend]').forEach(b=>b.addEventListener('click',()=>{draft[b.dataset.attend]=b.dataset.status;render();}));
+    $('submitRoll')?.addEventListener('click',async()=>{
+      const roster=lrn().filter(x=>x.classId===selectedClass);
+      if(roster.some(l=>!draft[l.id])){toast('Please select an attendance status for every learner.',true);return;}
+      if(!confirm(`Save attendance for ${roster.length} learners in ${selectedClass} on ${dateLabel(rollDate)}?`))return;
+      try{const res=await post('/api/attendance',{classId:selectedClass,date:rollDate,statuses:draft});await reload();toast(`Register saved. ${res.created} absence alert(s), ${res.corrected} correction(s) created.`);}catch(e){toast(e.message,true);}
+    });
+    document.querySelectorAll('[data-save-mark]').forEach(b=>b.addEventListener('click',async()=>{
+      const student=currentLearner();const inp=[...document.querySelectorAll('input[data-score]')].find(x=>x.dataset.score===b.dataset.saveMark);const score=Number(inp?.value);
+      if(!Number.isInteger(score)||score<0||score>100){toast('Use a whole number between 0 and 100.',true);return;}
+      try{await post('/api/marks',{learnerId:student.id,subject:b.dataset.saveMark,score});await reload();toast('Learner mark saved.');}catch(e){toast(e.message,true);}
+    }));
+    $('newMarkForm')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.target),student=currentLearner();try{await post('/api/marks',{learnerId:student.id,subject:String(f.get('subject')).trim(),score:Number(f.get('score'))});await reload();toast('Subject result saved.');}catch(err){toast(err.message,true);}});
+    $('eventForm')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.target);try{const payload={title:String(f.get('title')).trim(),description:String(f.get('description')||''),date:String(f.get('date')),grade:String(f.get('grade')),category:String(f.get('category')),time:String(f.get('time')||'')};if(editingEvent){await mutation('PUT',`/api/extended/events/${editingEvent}`,payload);editingEvent=null;}else await post('/api/events',payload);await reload();toast('School event saved.');}catch(err){toast(err.message,true);}});
+    $('announcementForm')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.target);try{const payload={title:String(f.get('title')).trim(),body:String(f.get('body')).trim(),grade:f.get('grade'),priority:f.get('priority')};if(editingAnnouncement){await mutation('PUT',`/api/extended/announcements/${editingAnnouncement}`,{announcement:payload,status:f.get('status')});editingAnnouncement=null;}else await post('/api/announcements',payload);await reload();toast('Announcement saved in Supabase.');}catch(err){toast(err.message,true);}});
+    document.querySelectorAll('[data-thread]').forEach(b=>b.addEventListener('click',async()=>{selectedGuardian=b.dataset.thread;render();if(extended)try{await post(`/api/extended/messages/${selectedGuardian}/read`,{});await loadExtension();}catch(e){toast(e.message,true);}}));
+    $('messageForm')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.target);try{await post('/api/messages',{guardianId:selectedGuardian,text:String(f.get('text')).trim()});await reload();toast('Message sent to parent.');}catch(err){toast(err.message,true);}});
+    document.querySelectorAll('[data-read]').forEach(b=>b.addEventListener('click',async()=>{try{await post(`/api/alerts/${encodeURIComponent(b.dataset.read)}/read`,{});await reload();}catch(err){toast(err.message,true);}}));
+    $('printReport')?.addEventListener('click',()=>window.print());
+
+
+    for(const id of ['insightFrom','insightTo','insightGrade','insightClass']){
+      $(id)?.addEventListener('change',e=>{const val=e.target.value;
+        if(id==='insightFrom')insightFrom=val;else if(id==='insightTo')insightTo=val;else if(id==='insightGrade'){insightGrade=val;insightClass='all';}else insightClass=val;insightMetrics=null;render();refreshInsights();});
+    }
+    $('clearInsights')?.addEventListener('click',()=>{insightFrom='';insightTo='';insightGrade='all';insightClass='all';insightMetrics=null;render();refreshInsights();});
+    document.querySelectorAll('[data-report-preset]').forEach(b=>b.addEventListener('click',()=>{const key=b.dataset.reportPreset,d=new Date();
+      if(key==='today')insightFrom=today();else if(key==='year')insightFrom=String(d.getFullYear())+'-01-01';else{d.setDate(d.getDate()-(key==='week'?6:29));const offset=d.getTimezoneOffset()*60000;insightFrom=new Date(d.getTime()-offset).toISOString().slice(0,10);}
+      insightTo=today();insightMetrics=null;render();refreshInsights();}));
+    $('printInsights')?.addEventListener('click',()=>window.print());
+    $('exportAttendanceCsv')?.addEventListener('click',()=>{
+      const rows=[['Class','Grade','Attendance entries','Present','Absent','Late','Attendance rate'],
+       ...(insightMetrics?.classes||[]).map(r=>[r.className,r.grade,r.total,r.present,r.absent,r.late,Number(r.total)?Math.round(Number(r.present)/Number(r.total)*100)+'%':'—'])];
+      const csv='\uFEFF'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+      const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+      const a=document.createElement('a');a.href=url;a.download='kagisho-class-attendance-'+today()+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);
+    });
+    // V6: requests are always reviewed by the authenticated school administrator.
+    $('learnerBirthdateForm')?.addEventListener('submit',async e=>{
+      e.preventDefault();const f=new FormData(e.target);
+      try{await mutation('PUT',`/api/extended/learners/${encodeURIComponent(String(f.get('learnerId')))}/birthdate`,
+        {date:String(f.get('date'))});await refreshGuardianRequests();render();toast('Learner birthdate saved privately.');}
+      catch(err){toast(err.message,true);}
+    });
+    document.querySelectorAll('[data-guardian-review]').forEach(b=>b.addEventListener('click',async()=>{
+      const approve=b.dataset.approve==='true';
+      if(!confirm(approve?
+        'Have you independently verified this person’s identity and guardianship? The name and DOB must match one learner. Approve access?':
+        'Reject this parent request?'))return;
+      try{await post(`/api/extended/guardian-requests/${encodeURIComponent(b.dataset.guardianReview)}/review`,
+        {approve,note:''});await reload();await refreshAdmin();
+        toast(approve?'Verified parent access approved.':'Guardian request rejected.');}
+      catch(err){toast(err.message,true);}
+    }));
+    // V5 features: all data mutations go to ASP.NET then Supabase RLS.
+    $('learnerSearch')?.addEventListener('input',e=>{const q=e.target.value.toLowerCase();document.querySelectorAll('[data-learner-search]').forEach(el=>el.hidden=!el.dataset.learnerSearch.includes(q));});
+    $('eventSearch')?.addEventListener('input',e=>{const q=e.target.value.toLowerCase();document.querySelectorAll('[data-event-search]').forEach(el=>el.hidden=!el.dataset.eventSearch.includes(q));});
+    $('auditSearch')?.addEventListener('input',e=>{const q=e.target.value.toLowerCase();document.querySelectorAll('[data-audit-search]').forEach(el=>el.hidden=!el.dataset.auditSearch.includes(q));});
+    $('docSearch')?.addEventListener('input',e=>{const q=e.target.value.toLowerCase();document.querySelectorAll('[data-doc-search]').forEach(el=>el.hidden=!el.dataset.docSearch.includes(q));});
+    document.querySelectorAll('[data-edit-ann]').forEach(b=>b.addEventListener('click',()=>{editingAnnouncement=b.dataset.editAnn;render();window.scrollTo(0,0);}));
+    $('cancelAnnouncement')?.addEventListener('click',()=>{editingAnnouncement=null;render();});
+    document.querySelectorAll('[data-ann-status]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm(`Change announcement to ${b.dataset.next}?`))return;try{await mutation('PATCH',`/api/extended/announcements/${b.dataset.annStatus}/status`,{status:b.dataset.next});await reload();toast('Announcement status updated.');}catch(e){toast(e.message,true);}}));
+    document.querySelectorAll('[data-delete-ann]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm('Permanently delete this announcement? This cannot be undone.'))return;try{await destroy(`/api/extended/announcements/${b.dataset.deleteAnn}`);await reload();toast('Announcement deleted.');}catch(e){toast(e.message,true);}}));
+    document.querySelectorAll('[data-edit-event]').forEach(b=>b.addEventListener('click',()=>{editingEvent=b.dataset.editEvent;render();window.scrollTo(0,0);}));
+    $('cancelEvent')?.addEventListener('click',()=>{editingEvent=null;render();});
+    document.querySelectorAll('[data-delete-event]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm('Permanently delete this calendar event?'))return;try{await destroy(`/api/extended/events/${b.dataset.deleteEvent}`);await reload();toast('Calendar event deleted.');}catch(e){toast(e.message,true);}}));
+    document.querySelectorAll('[data-edit-learner]').forEach(b=>b.addEventListener('click',()=>{editingLearner=b.dataset.editLearner;render();window.scrollTo(0,0);}));
+    $('cancelLearner')?.addEventListener('click',()=>{editingLearner=null;render();});
+    $('editLearnerForm')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.target);try{await mutation('PUT',`/api/extended/learners/${editingLearner}`,{name:String(f.get('name')),classId:String(f.get('classId')),active:f.has('active'),admissionNumber:String(f.get('admissionNumber')||'')});editingLearner=null;await reload();await refreshAdmin();toast('Learner updated. UUID unchanged.');}catch(err){toast(err.message,true);}});
+    document.querySelectorAll('[data-unlink-learner]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm('Remove this verified parent–learner relationship? The parent will lose access to this learner.'))return;try{await destroy(`/api/extended/learners/${b.dataset.unlinkLearner}/guardians/${b.dataset.unlinkParent}`);await reload();await refreshAdmin();toast('Guardian link removed.');}catch(err){toast(err.message,true);}}));
+    $('documentForm')?.addEventListener('submit',async e=>{e.preventDefault();const btn=e.target.querySelector('button');btn.disabled=true;const f=new FormData(e.target);f.set('published',f.has('published')?'true':'false');try{await call('/api/extended/documents/upload',{method:'POST',body:f});await reload();toast('Document uploaded securely.');}catch(err){toast(err.message,true);btn.disabled=false;}});
+    document.querySelectorAll('[data-doc-status]').forEach(b=>b.addEventListener('click',async()=>{try{await mutation('PATCH',`/api/extended/documents/${b.dataset.docStatus}/publication`,{published:b.dataset.publish==='true'});await reload();toast('Document publication updated.');}catch(err){toast(err.message,true);}}));
+    document.querySelectorAll('[data-delete-doc]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm('Permanently delete this document and its file?'))return;try{await destroy(`/api/extended/documents/${b.dataset.deleteDoc}`);await reload();toast('Document removed.');}catch(err){toast(err.message,true);}}));
+    $('termForm')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.target);try{await post('/api/extended/terms',{year:Number(f.get('year')),term:Number(f.get('term')),start:f.get('start'),end:f.get('end')});await reload();toast('Term saved.');}catch(err){toast(err.message,true);}});
+    $('createReportForm')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.target);try{const r=await post('/api/extended/reports',{learnerId:f.get('learnerId'),termId:f.get('termId'),comment:String(f.get('comment')||'')});selectedReport=r[0]?.id;await reload();toast('Draft report card created.');}catch(err){toast(err.message,true);}});
+    $('reportSelector')?.addEventListener('change',e=>{selectedReport=e.target.value;render();});
+    $('reportMarkForm')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.target);try{await post(`/api/extended/reports/${selectedReport}/marks`,{subject:String(f.get('subject')),percentage:Number(f.get('percentage'))});await reload();toast('Report mark saved.');}catch(err){toast(err.message,true);}});
+    $('reportStatusForm')?.addEventListener('submit',async e=>{e.preventDefault();const b=e.submitter;if(!b?.dataset.reportPublish)return;if(!confirm(b.dataset.reportPublish==='true'?'Publish this report card?':'Unpublish this report card for correction?'))return;const f=new FormData(e.target);try{await mutation('PATCH',`/api/extended/reports/${selectedReport}/publication`,{published:b.dataset.reportPublish==='true',comment:String(f.get('comment')||'')});await reload();toast('Report status saved.');}catch(err){toast(err.message,true);}});
+    $('printReportCard')?.addEventListener('click',()=>{const el=$('reportPrint');if(!el)return;const win=window.open('','_blank','width=850,height=900');if(!win){toast('Allow pop-ups to print the report.',true);return;}win.document.write(`<html><head><title>Academic report</title><style>body{font:16px Arial;margin:48px;color:#123F6A}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{padding:12px;border:1px solid #C2E3F6;text-align:left}h2{margin-top:28px}.report-heading{display:flex;justify-content:space-between;border-bottom:3px solid #087FC0;padding-bottom:15px}</style></head><body>${el.innerHTML}</body></html>`);win.document.close();win.focus();win.print();});
+    document.querySelectorAll('[data-view-message]').forEach(b=>b.addEventListener('click',()=>{selectedGuardian=b.dataset.viewMessage;goto('messages');}));
+    for(const [formId,url,make] of [
+      ['classForm','/api/admin/classes',f=>({name:String(f.get('name')).trim(),grade:Number(f.get('grade'))})],
+      ['learnerForm','/api/admin/learners',f=>({name:String(f.get('name')).trim(),classId:String(f.get('classId')),admissionNumber:String(f.get('admissionNumber')).trim()})],
+      ['guardianLinkForm','/api/admin/link-guardian',f=>({userId:String(f.get('userId')),learnerId:String(f.get('learnerId'))})],
+      ['assignClassForm','/api/admin/assign-teacher',f=>({userId:String(f.get('userId')),classId:String(f.get('classId'))})]
+    ]){
+      $(formId)?.addEventListener('submit',async e=>{e.preventDefault();const button=e.target.querySelector('button[type="submit"],button');if(button)button.disabled=true;
+        try{await post(url,make(new FormData(e.target)));await reload();await refreshAdmin();toast('Saved successfully to Supabase.');}
+        catch(err){toast(err.message,true);if(button)button.disabled=false;}
+      });
+    }
+    $('inviteStaffForm')?.addEventListener('submit',async e=>{
+      e.preventDefault();const f=new FormData(e.target);const btn=e.target.querySelector('button[type=submit]');btn.disabled=true;
+      try{await post('/api/admin/staff',{name:String(f.get('name')).trim(),email:String(f.get('email')).trim(),role:String(f.get('role'))});toast('An invitation has been emailed to the new staff member.');await refreshStaff();}
+      catch(err){toast(err.message,true);btn.disabled=false;}
+    });
+    document.querySelectorAll('[data-set-active]').forEach(b=>b.addEventListener('click',async()=>{
+      const next=b.dataset.active==='true';
+      if(!confirm(`${next?'Activate':'Deactivate'} this staff account?`))return;
+      try{await post(`/api/admin/staff/${encodeURIComponent(b.dataset.setActive)}/status`,{active:next});toast(`Staff account ${next?'activated':'deactivated'}.`);await refreshStaff();}
+      catch(err){toast(err.message,true);}
+    }));
+    if($('thread'))$('thread').scrollTop=$('thread').scrollHeight;
+  }
+  reload().then(()=>{restoreDraft();render();}).catch(e=>{$('app').innerHTML=`<div class="loading-screen"><h2>Unable to open the school portal</h2><p>${esc(e.message)}</p><a class="button primary" href="/login">Return to sign in</a></div>`;});
+})();

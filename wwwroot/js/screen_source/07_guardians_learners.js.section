@@ -1,0 +1,44 @@
+  async function refreshGuardianRequests(){
+    try{guardianReviews=await call('/api/extended/guardian-requests');guardianReviewsError='';}
+    catch(err){guardianReviews={requests:[],birthdates:[]};guardianReviewsError=err.message;}
+  }
+  function guardianReviewsPanel(){
+    const requests=guardianReviews?.requests||[];
+    const dates=guardianReviews?.birthdates||[];
+    const people=adminDirectory?.parents||[];
+    return `<section class="card panel">${heading('Parent access requests','Parents enter their child’s name and date of birth. Administrators verify guardianship, then approve or reject.')}
+      ${guardianReviewsError?`<div class="empty-note">Apply migration 04_parent_experience.sql to enable requests. ${esc(guardianReviewsError)}</div>`:''}
+      <form id="learnerBirthdateForm" class="form-grid">
+        <label class="field">Learner with a verified school record<select name="learnerId" required>${lrn().map(l=>`<option value="${esc(l.id)}">${esc(l.name)} · ${esc(grade(l))}</option>`).join('')}</select></label>
+        <label class="field">Date of birth (private; admins only)<input type="date" name="date" required/></label>
+        <button class="button primary" ${lrn().length?'':'disabled'}>Save learner date of birth</button>
+      </form>
+      <p class="muted">${dates.length} learner DOB record(s) securely stored. Date of birth is never shown in the parent app. Confirm a parent’s identity and guardianship independently before approval.</p>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Parent</th><th>Claimed learner</th><th>Date of birth</th><th>Status</th><th>Review</th></tr></thead><tbody>
+        ${requests.map(r=>`<tr><td>${esc(people.find(p=>p.user_id===r.parent_id)?.full_name||'Registered parent')}<br><small>${esc(people.find(p=>p.user_id===r.parent_id)?.email||'')}</small></td>
+          <td>${esc(r.child_name)}</td><td>${esc(r.child_birth_date)}</td><td>${pill(r.status,r.status==='approved'?'pill-green':'pill-gold')}</td>
+          <td>${r.status==='pending'?`<div class="action-stack"><button class="button primary" data-guardian-review="${esc(r.id)}" data-approve="true">Approve</button><button class="button danger-outline" data-guardian-review="${esc(r.id)}" data-approve="false">Reject</button></div>`:'Reviewed'}</td></tr>`).join('')||'<tr><td colspan="5">No requests submitted yet.</td></tr>'}
+      </tbody></table></div></section>`;
+  }
+  function managePage(){
+    if(!admin())return empty('This section is for school administrators.');
+    const options=(arr,value,label)=>arr.map(v=>`<option value="${esc(v[value])}">${esc(v[label])}</option>`).join('');
+    const parents=adminDirectory?.parents||[];
+    const teachers=(staffDirectory||[]).filter(s=>s.role==='Teacher'&&s.active);
+    const classes=cls(),learners=lrn();
+    const links=adminDirectory?.links||[];
+    const target=learners.find(l=>l.id===editingLearner);
+    return `${hero('SCHOOL DIRECTORY','Your school, organised.','Create school classes and learners, assign teachers and verify parent–child relationships.','','Verified and connected')}
+      <section class="card panel">${heading('Classes and learners','Add a class before adding learners; these records are saved to Supabase.')}
+      <div class="two-cols"><form id="classForm" class="login-form"><h3>Create a class</h3><label class="field">Class name<input name="name" placeholder="Grade 10B" required minlength="2" maxlength="40" /></label><label class="field">Grade<select name="grade">${Array.from({length:5},(_,i)=>`<option value="${i+8}" ${i===2?'selected':''}>Grade ${i+8}</option>`).join('')}</select></label><button class="button primary">Save class</button></form>
+      <form id="learnerForm" class="login-form"><h3>Add a learner</h3><label class="field">Learner full name<input name="name" required maxlength="100" placeholder="Fictional learner name"/></label><label class="field">Class<select name="classId" required>${options(classes,'id','name')}</select></label><label class="field">Unique admission number<input name="admissionNumber" required minlength="4" maxlength="32" placeholder="e.g. KG-2026-0001"/></label><button class="button primary" ${classes.length?'':'disabled'}>Save learner</button></form></div></section>
+      ${guardianReviewsPanel()}
+      <section class="card panel">${heading('Secure access and assignments','Only school staff can approve parent links. Teachers need assigned classes.')}
+      <div class="two-cols"><div class="empty-note"><h3>Parent-requested access</h3>Parents submit the learner’s name and date of birth in their app. Review the request above instead of manually linking accounts. Matching details do not replace proof of guardianship.</div>
+      <form id="assignClassForm" class="login-form"><h3>Assign teacher to class</h3><label class="field">Teacher<select name="userId" required>${options(teachers,'userId','fullName')}</select></label><label class="field">Class<select name="classId" required>${options(classes,'id','name')}</select></label><button class="button primary" ${teachers.length&&classes.length?'':'disabled'}>Assign class</button></form></div></section>
+      ${target?`<section class="card panel">${heading('Edit learner','Updates keep the same learner UUID across all modules')}<form id="editLearnerForm" class="form-grid"><label class="field">Full name<input name="name" required maxlength="100" value="${esc(target.name)}"/></label><label class="field">Class<select name="classId">${classes.map(c=>`<option value="${esc(c.id)}" ${target.classId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label><label class="field">Admission number<input name="admissionNumber" minlength="4" maxlength="32" value="${esc(target.admissionNumber||'')}"/></label><label class="field"><input type="checkbox" name="active" checked/> Active learner</label><div class="form-actions"><button class="button primary">Save learner</button><button type="button" class="button outline" id="cancelLearner">Cancel</button></div></form><small class="muted">Deactivating a learner removes them from active registers; historical records remain in the database.</small></section>`:''}
+      <section class="card panel">${heading('Current learners',`${learners.length} active learner(s) in the system`)}
+      <label class="field">Search learner by name, grade or learner UUID<input id="learnerSearch" placeholder="Search the learner directory"/></label>
+      ${learners.length?`<div class="table-scroll"><table class="data-table"><thead><tr><th>Learner</th><th>Class</th><th>Verified guardians</th><th>Manage</th></tr></thead><tbody>${learners.map(l=>`<tr data-learner-search="${esc((l.name+' '+l.admissionNumber+' '+(classes.find(c=>c.id===l.classId)?.name||'')+' '+l.id).toLowerCase())}"><td><strong>${esc(l.name)}</strong><br><small class="muted">${esc(l.admissionNumber||'No admission number')} · ${esc(l.id)}</small></td><td>${esc(classes.find(c=>c.id===l.classId)?.name||'—')}</td><td>${links.filter(x=>x.learner_id===l.id).map(x=>`<span class="guardian-chip">${esc(parents.find(p=>p.user_id===x.user_id)?.full_name||userName(x.user_id))} <button title="Remove verified guardian link" data-unlink-learner="${esc(l.id)}" data-unlink-parent="${esc(x.user_id)}">×</button></span>`).join('')||'Pending'}</td><td><button class="button outline" data-edit-learner="${esc(l.id)}">Edit</button></td></tr>`).join('')}</tbody></table></div>`:empty('Add the first class and learner to begin.')}</section>`;
+  }
+

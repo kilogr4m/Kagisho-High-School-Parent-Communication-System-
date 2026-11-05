@@ -1,0 +1,30 @@
+  async function refreshStaff(){
+    staffError='';
+    try{const response=await call('/api/admin/staff');staffDirectory=response.staff;}
+    catch(err){staffError=err.message;staffDirectory=[];}
+    if(page==='staff')render();
+  }
+  function staffPage(){if(!admin())return empty('You do not have access to this section.');
+    return `${hero('PEOPLE & PERMISSIONS','A school team, thoughtfully managed.','Invite trusted staff, manage their access and keep your school workspace organised.')}
+      <div class="stats-grid">${stat('Staff members',staffDirectory?.length??'—','Registered in Supabase')}${stat('Active staff',staffDirectory?.filter(s=>s.active).length??'—','Allowed to sign in')}${stat('Invitations','Email','Secure account activation')}</div>
+      <div class="two-cols"><section class="card panel">${heading('Invite a staff member','Only school administrators can create staff accounts.')}
+      <form id="inviteStaffForm" class="login-form"><label class="field"><span>Full name</span><input name="name" required minlength="2" maxlength="100" placeholder="e.g. Lerato Dlamini"/></label>
+      <label class="field"><span>Work email</span><input type="email" name="email" required maxlength="254" placeholder="name@school.co.za"/></label>
+      <label class="field"><span>Role</span><select name="role"><option value="Teacher">Teacher</option><option value="Admin">School administrator</option></select></label>
+      <button class="button primary" type="submit">Send staff invitation ${icon('arrow',16)}</button></form>
+      <p class="section-desc">The staff member receives an email to set their own password. Staff cannot self-register.</p></section>
+      <section class="card panel">${heading('Staff directory','Real staff accounts managed through your connected Supabase project')}
+      ${staffError?`<div class="empty-note">${esc(staffError)}</div>`:staffDirectory===null?empty('Loading staff directory…'):
+      !staffDirectory.length?empty('No staff members have been added yet. Create the first administrator using the setup guide.'):
+      `<div class="staff-list">${staffDirectory.map(person=>`<div class="staff-row"><span class="person-avatar">${esc(person.fullName.split(' ').map(p=>p[0]).join('').slice(0,2))}</span>
+      <div class="staff-details"><strong>${esc(person.fullName)}</strong><small>${esc(person.email)}</small><span>${pill(person.role,'pill-green')} ${pill(person.active?'Active':'Inactive',person.active?'pill-green':'pill-gold')}</span></div>
+      ${person.userId===session.id?'<span class="muted small">Your account</span>':`<button class="button outline" type="button" data-set-active="${esc(person.userId)}" data-active="${!person.active}">${person.active?'Deactivate':'Activate'}</button>`}</div>`).join('')}</div>`}</section></div>`;
+  }
+
+
+  async function refreshAdmin(){
+    try{const [directory,staffList]=await Promise.all([call('/api/admin/directory'),call('/api/admin/staff')]);adminDirectory=directory;staffDirectory=staffList.staff;}
+    catch(err){toast('Could not load school administrator data: '+err.message,true);adminDirectory={parents:[],links:[],assignments:[]};}
+    await refreshGuardianRequests();
+    if(page==='manage')render();
+  }

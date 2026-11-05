@@ -1,0 +1,20 @@
+@{
+    Layout = null;
+    ViewData["Title"] = "Kagisho Connect | School Portal";
+}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>@ViewData["Title"]</title>
+  <meta name="description" content="Kagisho Connect school staff management portal." />
+  <link rel="stylesheet" href="/css/site.css?v=skyblue-1" />
+</head>
+<body>
+<form id="csrf" class="sr-only" aria-hidden="true">@Html.AntiForgeryToken()</form>
+<div id="app"><div class="loading-screen"><div class="spinner"></div><h2>Opening Kagisho Connect…</h2><p>Preparing your school workspace.</p></div></div>
+<div id="toast" role="status" aria-live="polite" class="toast" hidden></div>
+<script defer src="/js/site.js?v=skyblue-guardian-fix-20261105"></script>
+</body>
+</html>

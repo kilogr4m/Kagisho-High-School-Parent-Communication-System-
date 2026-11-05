@@ -1,0 +1,9 @@
+@{ Layout=null; ViewData["Title"]="Accept staff invitation | Kagisho Connect"; }
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>@ViewData["Title"]</title><link rel="stylesheet" href="/css/site.css"/></head>
+<body class="login-body"><main class="auth-center"><div class="login-card"><div class="brand"><span class="brand-icon">✦</span><div><strong>Kagisho<span>Connect</span></strong><small>Better together, every day.</small></div></div><span class="eyebrow">STAFF INVITATION</span><h2>Welcome to the team.</h2><p>Set your password to activate your teacher or administrator account.</p>
+@if(ViewBag.Success != null){<div class="auth-success">@ViewBag.Success <a href="/login">Sign in</a></div>}
+else {<form method="post" action="/activate" class="login-form">@Html.AntiForgeryToken()<div asp-validation-summary="All" class="form-error" role="alert"></div>
+<input type="hidden" name="accessToken" id="inviteToken" />
+<label class="field"><span>Choose password (at least 12 characters)</span><input type="password" name="password" minlength="12" autocomplete="new-password" required/></label>
+<label class="field"><span>Confirm password</span><input type="password" name="confirmPassword" minlength="12" autocomplete="new-password" required/></label><button class="button primary login-button" type="submit">Activate my account →</button></form>}
+<div class="login-help" id="inviteHelp">Only school administrators can create staff accounts. Use the invitation link from your email.</div><p class="auth-register"><a href="/login">Back to sign in</a></p></div></main><script src="/js/auth-links.js" defer></script></body></html>

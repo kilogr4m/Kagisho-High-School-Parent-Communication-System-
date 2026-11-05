@@ -1,0 +1,29 @@
+  function parentDashboard(){if(!lrn().length) return `${hero('WELCOME TO KAGISHO CONNECT',`Welcome, ${session.name?.split(' ')[0]||'Parent'}.`,'Your parent account is ready to use.')}<section class="card panel connected-empty"><div class="section-icon">${icon('users',28)}</div><h2>We’ll connect your learner next.</h2><p>Your school needs to verify your relationship to your child before academic records, attendance and private updates can appear here.</p><p>Contact the school office to request learner linking. Your account has been created securely.</p>${btn('View school news','announcements')}</section>`;const ch=currentLearner();const alertCount=(store.alerts||[]).filter(a=>!a.isRead).length;
+    return `${hero('YOUR FAMILY HUB',`Good morning, ${session.name?.split(' ')[0]||'Parent'}.`,'Everything important about your child, organised in one calm place.',btn('View school news','announcements','white'),'Family & school, together')}
+    ${childPicker()}${alertCount?`<div class="top-alert"><div>${icon('bell',21)}<div><strong>${alertCount} attendance alert${alertCount!==1?'s':''} to review</strong><p>Important updates from your child’s school.</p></div></div>${btn('View alerts','alerts')}</div>`:''}
+    <div class="stats-grid">${stat('Academic average',`${avg(ch)}%`,'Across current subjects')}${stat('Subjects',String(ch?.marks?.length||0),'Academic overview')}${stat('Unread alerts',String(alertCount),'Your family updates')}</div>
+    <div class="two-cols"><section class="card panel">${heading('Learning progress','Your child’s most recent marks')}${marksMini(ch)}${btn('See all subjects','learning')}</section><section class="card panel">${heading('From your school','Recent notices and reminders')}${notices().slice(0,3).map(announcementCard).join('')||empty('No announcements yet.')}${btn('All school news','announcements')}</section></div>`;
+  }
+  function staffDashboard(){
+    const todayRows=(store.rollCalls||[]).filter(r=>r.date===today());
+    const counts={Present:0,Absent:0,Late:0};
+    for(const r of todayRows)for(const status of Object.values(r.statuses||{}))if(status in counts)counts[status]++;
+    const marks=lrn().flatMap(l=>l.marks||[]),overall=marks.length?Math.round(marks.reduce((a,m)=>a+m.score,0)/marks.length):null;
+    const events=(store.events||[]).filter(e=>e.schoolDate>=today()).slice(0,4);
+    const docs=extended?.totals?.documentCount;
+    const staffCount=staffDirectory?.length;
+    const parents=extended?.totals?.parentCount??store.guardians?.length??0;
+    const totalMarked=Object.values(counts).reduce((a,b)=>a+b,0);
+    const gradeGroups=Object.entries(lrn().reduce((out,l)=>{const g=grade(l)||'Other';out[g]=(out[g]||0)+1;return out;},{})).sort((a,b)=>Number(a[0])-Number(b[0]));
+    return `${hero('SCHOOL OPERATIONS',`Welcome back, ${session.name||'Teacher'}.`,'All the information you need to run an organised school day, connected to your real records.',btn('Take morning roll call','rollcall','white'),'School and family, connected')}
+    ${extensionError?`<div class="empty-note">Additional V5 modules need database setup: ${esc(extensionError)}. Existing features remain available.</div>`:''}
+    <div class="stats-grid school-metrics">${stat('Registered learners',extended?.totals?.learnerCount??lrn().length,'Visible to your role')}${stat('Staff',staffCount??'—',admin()?'Active and inactive accounts':'Available to administrators')}${stat('Registered parents',parents,'Visible verified parent profiles')}${stat('Documents',docs??'—','Uploaded school files')}${stat('Present today',counts.Present,'Submitted registers')}${stat('Absent today',counts.Absent,'Submitted registers')}${stat('Late today',counts.Late,'Submitted registers')}${stat('Academic average',overall===null?'—':overall+'%',marks.length+' recorded subject marks')}</div>
+    <div class="two-cols"><section class="card panel">${heading('Learners by grade','Based on the learner register')}
+      ${gradeGroups.length?gradeGroups.map(([g,n])=>`<div class="chart-item"><div class="row"><strong>Grade ${esc(g)}</strong><span>${n} learner${n===1?'':'s'}</span></div><div class="chart-track"><div class="chart-bar" style="width:${Math.round(n/Math.max(1,lrn().length)*100)}%"></div></div></div>`).join(''):empty('Register learners to see grade distribution.')}
+      ${btn('Detailed analytics','insights')}</section>
+      <section class="card panel">${heading('Today’s attendance',totalMarked+' registered learner statuses')}
+      ${['Present','Absent','Late'].map(k=>`<div class="chart-item"><div class="row"><strong>${k}</strong><span>${counts[k]}</span></div><div class="chart-track"><div class="chart-bar" style="width:${totalMarked?Math.round(counts[k]/totalMarked*100):0}%"></div></div></div>`).join('')}${btn('Take attendance','rollcall')}</section></div>
+    <div class="two-cols"><section class="card panel">${heading('School announcements','Latest notices')}${notices().filter(x=>x.status==='published').slice(0,3).map(announcementCard).join('')||empty('No published announcements.')}${btn('Manage announcements','announcements')}</section>
+    <section class="card panel">${heading('Upcoming events','Dates that matter')}${events.map(e=>`<article class="feed-item"><div class="feed-icon">${icon('calendar')}</div><div class="feed-copy"><strong>${esc(e.title)}</strong><p>${esc(dateLabel(e.schoolDate))}${e.category?' · '+esc(e.category):''}</p></div></article>`).join('')||empty('No upcoming school events.')}${btn('Open calendar','events')}</section></div>
+    <div class="quick-grid">${[['learners','Learners & marks'],['reports','Report cards'],['documents','Documents'],['messages','Parent messaging'],['notifications','Staff notifications']].map(([id,label])=>`<button class="button outline" data-go="${id}">${esc(label)} ${icon('arrow',15)}</button>`).join('')}</div>`;
+  }
