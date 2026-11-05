@@ -1,0 +1,5 @@
+mobile/.dart_tool/
+mobile/.flutter-plugins-dependencies
+mobile/build/
+web/bin/
+web/obj/
